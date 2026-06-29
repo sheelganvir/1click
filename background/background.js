@@ -121,12 +121,9 @@ async function getValidAccessToken() {
   let { accessToken, refreshToken, expiresAt, email } = data.session;
   
   if (Date.now() > expiresAt - 60000) {
-    const res = await fetch(`${CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    const res = await fetch(`${CONFIG.WEB_APP_URL}/api/auth/refresh`, {
       method: 'POST',
-      headers: {
-        'apikey': CONFIG.SUPABASE_ANON_KEY,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken })
     });
     if (!res.ok) {
@@ -145,17 +142,14 @@ async function getValidAccessToken() {
 
 async function fetchProfile() {
   const token = await getValidAccessToken();
-  const res = await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/profiles?select=*`, {
+  const res = await fetch(`${CONFIG.WEB_APP_URL}/api/profile`, {
     headers: {
-      'apikey': CONFIG.SUPABASE_ANON_KEY,
       'Authorization': `Bearer ${token}`
     }
   });
   if (!res.ok) throw new Error('Failed to fetch profile');
-  const rows = await res.json();
-  if (rows.length === 0) throw new Error('Profile not found');
-  
-  const row = rows[0];
+  const row = await res.json();
+  if (!row || Object.keys(row).length === 0) throw new Error('Profile not found');
   const profile = {
     firstName: row.first_name || '',
     middleName: row.middle_name || '',
