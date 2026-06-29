@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Job Autofill Options</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 500px; margin: 40px auto; padding: 0 20px; color: #333; }
+    h1 { color: #4f46e5; }
+    .card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    label { display: block; font-weight: 500; margin-bottom: 8px; }
+    select, input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; margin-bottom: 16px; box-sizing: border-box; }
+    button { background: #4f46e5; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 1rem; }
+    button:hover { background: #4338ca; }
+    .hidden { display: none; }
+    #status { color: #059669; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Settings</h1>
+  
+  <div class="card">
+    <h2>AI Provider</h2>
+    <label for="provider">Select Provider</label>
+    <select id="provider">
+      <option value="gemini">Google Gemini (Free)</option>
+      <option value="groq">Groq (Free)</option>
+    </select>
+    
+    <div id="gemini-settings">
+      <label for="gemini-key">Gemini API Key</label>
+      <input type="password" id="gemini-key" placeholder="AIzaSy...">
+      <p style="font-size: 0.85rem"><a href="https://aistudio.google.com/app/apikey" target="_blank">Get a Gemini Key</a></p>
+    </div>
+    
+    <div id="groq-settings" class="hidden">
+      <label for="groq-key">Groq API Key</label>
+      <input type="password" id="groq-key" placeholder="gsk_...">
+      <label for="groq-model">Groq Model</label>
+      <select id="groq-model">
+        <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant</option>
+        <option value="llama-3.1-70b-versatile">Llama 3.1 70B Versatile</option>
+        <option value="llama3-70b-8192">Llama 3 70B</option>
+        <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+      </select>
+      <p style="font-size: 0.85rem"><a href="https://console.groq.com/keys" target="_blank">Get a Groq Key</a></p>
+    </div>
+    
+    <button id="save-btn">Save</button>
+    <div id="status"></div>
+  </div>
+  
+  <div class="card">
+    <h2>Account</h2>
+    <div id="account-info">Loading...</div>
+  </div>
+  
+  <div style="text-align: center; font-size: 0.85rem; color: #9ca3af; margin-top: 20px; font-style: italic;">
+    Made by Sheel Ganvir
+  </div>
+  
+  <script src="../config.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

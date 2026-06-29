@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Job Autofill",
+  "version": "1.0.0",
+  "description": "AI-powered system that autofills job applications.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs785k5dhWIqH5IPOVSGwuuQV8z3BnjygH2Gcse0HTRKYGhFPwFDQDTawgK3nREsFR6V1C7MfEJjtGUEvR7TNaUd+8b/HG/QYA12Pcfqvdk7XqVyP3HTc8FUnS8n91YeTeKKIFs5iyXodRaJA2pBViEQcPShyVe6TgduaStQo8liFClZSaNh5uO14GqGDbcSqGBCi+XfBNBAIvSiMW9Dl3rlJRXAbjReNf1YOHV5JKtBHCcdFboOhhw1eJHWoQyQYeADH6wm2JJXCwjEBw8hh980fWGeWN+UjGEeeV3TCFHwSaJAHUhpdxQENyFSw9quxcv3/kBuFXq/pACX02HwQpQIDAQAB",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "32": "assets/icon32.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "options_page": "options/options.html",
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "all_frames": true,
+      "js": ["content/content.js"]
+    }
+  ],
+  "externally_connectable": {
+    "matches": [
+      "http://localhost/*",
+      "https://job-autofill.vercel.app/*"
+    ]
+  },
+  "icons": {
+    "16": "assets/icon16.png",
+    "32": "assets/icon32.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  }
+}

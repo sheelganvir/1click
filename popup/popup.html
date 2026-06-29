@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Job Autofill</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Job Autofill</h1>
+  </div>
+  
+  <div id="state-signed-out" class="state-view hidden">
+    <p>Sign in to sync your profile and resume.</p>
+    <button id="btn-signin" class="primary-btn">Sign in / Sign up</button>
+  </div>
+  
+  <div id="state-no-key" class="state-view hidden">
+    <p>Please add your AI API key to continue.</p>
+    <button id="btn-add-key" class="primary-btn">Add AI Key</button>
+  </div>
+  
+  <div id="state-ready" class="state-view hidden">
+    <button id="btn-parse-jd" class="secondary-btn">Parse JD</button>
+    <button id="btn-autofill" class="primary-btn">Autofill</button>
+    <div id="status-msg"></div>
+  </div>
+  
+  <div id="footer" class="hidden">
+    <span id="user-email"></span>
+    <div class="links">
+      <a href="#" id="link-dashboard">Dashboard</a>
+      <a href="#" id="link-signout">Sign out</a>
+    </div>
+  </div>
+  
+  <div class="credit">Made by Sheel Ganvir</div>
+  
+  <script src="../config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

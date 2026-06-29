@@ -1,0 +1,21 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import ConnectClient from './ConnectClient'
+
+export default async function Connect() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login?next=/connect')
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <ConnectClient 
+        email={user.email!} 
+        extensionId={process.env.NEXT_PUBLIC_EXTENSION_ID!} 
+      />
+    </div>
+  )
+}
