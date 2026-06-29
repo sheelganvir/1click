@@ -46,4 +46,4 @@ Demo/
 test/
 
 # Supabase setup files (Not needed for end users)
-supabase/
+/supabase/
