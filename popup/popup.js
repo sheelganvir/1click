@@ -23,6 +23,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
   
+  document.getElementById('btn-sync').addEventListener('click', () => {
+    const status = document.getElementById('status-msg');
+    status.innerText = 'Syncing profile...';
+    chrome.runtime.sendMessage({ type: 'REFRESH_PROFILE' }, (res) => {
+      if (res && res.error) status.innerText = 'Error: ' + res.error;
+      else status.innerText = 'Profile synced successfully!';
+    });
+  });
+  
   document.getElementById('btn-parse-jd').addEventListener('click', async () => {
     const status = document.getElementById('status-msg');
     status.innerText = 'Parsing...';

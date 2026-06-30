@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { emptyProfile, UserProfile } from '@/lib/profile'
 import * as pdfjsLib from 'pdfjs-dist'
@@ -66,6 +67,7 @@ const COUNTRIES = [
 
 export default function DashboardClient({ userId, email, initialProfile }: { userId: string, email: string, initialProfile: any }) {
   const supabase = createClient()
+  const router = useRouter()
   
   const [profile, setProfile] = useState<UserProfile>(() => {
     const p = emptyProfile()
@@ -405,8 +407,12 @@ ${text.substring(0, 15000)}`
 
     const { error } = await supabase.from('profiles').upsert(dbData)
     
-    if (error) setMsg('Error saving profile: ' + error.message)
-    else setMsg('Profile saved successfully!')
+    if (error) {
+      setMsg('Error saving profile: ' + error.message)
+    } else {
+      setMsg('Profile saved successfully!')
+      router.refresh()
+    }
     
     setSaving(false)
   }
