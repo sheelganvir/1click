@@ -2,9 +2,10 @@
 
 import { Suspense, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 function LoginContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const next = searchParams.get('next') || '/dashboard'
   const supabase = createClient()
@@ -13,14 +14,15 @@ function LoginContent() {
   const [password, setPassword] = useState('')
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(false)
 
-  const handleEmailLogin = async (e: React.FormEvent, type: 'login' | 'signup') => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMsg('')
     
     let error
-    if (type === 'login') {
+    if (!isSignUp) {
       const res = await supabase.auth.signInWithPassword({ email, password })
       error = res.error
     } else {
@@ -37,10 +39,11 @@ function LoginContent() {
     if (error) {
       setMsg(error.message)
     } else {
-      if (type === 'signup') {
+      if (isSignUp) {
         setMsg('Check your email for a confirmation link, or log in if auto-confirm is enabled.')
       } else {
-        window.location.href = next
+        router.push(next)
+        router.refresh()
       }
     }
     setLoading(false)
@@ -61,59 +64,108 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-sm space-y-6">
-        <h2 className="text-2xl font-bold text-center text-gray-900">Sign In</h2>
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden font-sans">
+      <div className="absolute top-20 left-10 w-96 h-96 bg-accent/20 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-20 right-10 w-64 h-64 bg-light-accent/40 rounded-full blur-[100px] pointer-events-none"></div>
+      
+      <div className="w-full max-w-[420px] bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.08)] border border-light-accent p-8 sm:p-10 relative z-10">
+        <div className="mb-8 flex flex-col items-center relative mt-2">
+          <h2 className="text-3xl font-extrabold text-center text-black flex items-center gap-2">
+            {isSignUp ? "Create" : "Welcome"} <span className="text-primary">{isSignUp ? "account" : "back!"}</span>
+          </h2>
+          <p className="text-sm font-bold text-black/60 mt-2">
+            {isSignUp ? "Sign up to start your journey." : "Login to continue your journey."}
+          </p>
+        </div>
         
-        <form className="space-y-4">
+        <form className="space-y-5" onSubmit={handleEmailAuth}>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input 
-              type="email" 
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-              required
-            />
+            <label className="block text-[11px] font-extrabold text-black mb-2">Email</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              </div>
+              <input 
+                type="email" 
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="block w-full rounded-xl border border-light-accent bg-white px-4 py-3 pl-12 text-sm font-bold text-black placeholder:text-black/30 outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-accent"
+                required
+              />
+            </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input 
-              type="password" 
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-            />
+            <label className="block text-[11px] font-extrabold text-black mb-2">Password</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <input 
+                type="password" 
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="block w-full rounded-xl border border-light-accent bg-white px-4 py-3 pl-12 pr-12 text-sm font-bold text-black placeholder:text-black/30 outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-accent"
+                required
+              />
+              <div className="absolute inset-y-0 right-0 pr-4 flex items-center text-black/40 cursor-pointer hover:text-primary transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>
+            </div>
+            {!isSignUp && (
+              <div className="flex justify-end mt-2">
+                <a href="#" className="text-[11px] font-extrabold text-primary hover:text-[#0B7A2A] transition-colors">Forgot password?</a>
+              </div>
+            )}
           </div>
           
-          <div className="flex gap-2">
+          <div className="pt-2">
             <button 
-              onClick={e => handleEmailLogin(e, 'login')}
+              type="submit"
               disabled={loading}
-              className="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              className="w-full bg-gradient-to-b from-[#0B7A2A] to-primary text-white py-3.5 rounded-xl font-extrabold shadow-[0_4px_15px_var(--soft-glow)] hover:shadow-[0_6px_20px_var(--glow)] transition-all hover:-translate-y-0.5 active:translate-y-0 border border-primary/50 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              Log In
-            </button>
-            <button 
-              onClick={e => handleEmailLogin(e, 'signup')}
-              disabled={loading}
-              className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-md hover:bg-gray-200 disabled:opacity-50"
-            >
-              Sign Up
+              {isSignUp ? "Sign Up" : "Login"}
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80">
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+              </svg>
             </button>
           </div>
           
+          <div className="relative flex items-center py-2">
+            <div className="flex-grow border-t border-light-accent"></div>
+            <span className="flex-shrink-0 mx-4 text-[10px] font-bold text-black/40 lowercase">or</span>
+            <div className="flex-grow border-t border-light-accent"></div>
+          </div>
+
           <button 
             type="button"
             onClick={handleMagicLink}
             disabled={loading}
-            className="w-full border border-indigo-600 text-indigo-600 py-2 rounded-md hover:bg-indigo-50 disabled:opacity-50"
+            className="w-full bg-white border border-light-accent text-black py-3 rounded-xl font-extrabold hover:border-primary/50 hover:bg-light-accent/10 hover:shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-3"
           >
-            Send Magic Link
+            <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Continue with Google
           </button>
         </form>
         
-        {msg && <p className="text-center text-sm text-red-600 font-medium">{msg}</p>}
+        {msg && <p className="text-center text-sm text-red-500 font-bold mt-4">{msg}</p>}
+
+        <p className="text-center text-xs font-bold text-black/60 mt-6 pt-2">
+          {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+          <button 
+            type="button"
+            onClick={() => {
+              setIsSignUp(!isSignUp)
+              setMsg('')
+            }} 
+            className="text-primary font-extrabold hover:text-[#0B7A2A] transition-colors"
+          >
+            {isSignUp ? "Log in" : "Sign up"}
+          </button>
+        </p>
       </div>
     </div>
   )

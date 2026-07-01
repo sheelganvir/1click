@@ -1,26 +1,142 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-light-accent: var(--light-accent);
+  --color-border: var(--border);
+  --color-cards: var(--cards);
+  
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+:root {
+  --background: #FCFCFC;
+  --foreground: #091C12;
+  --primary: #06561C;
+  --secondary: #51984D;
+  --accent: #9ACE98;
+  --light-accent: #D2EDD0;
+  --border: #D2EDD0;
+  --cards: #FFFFFF;
+  --glow: rgba(57, 255, 20, 0.45);
+  --soft-glow: rgba(0, 180, 50, 0.20);
+  background-color: white !important;
+}
+
 @media (prefers-color-scheme: dark) {
+  /* Tailwind automatically uses dark mode classes. Since we want light mode everywhere: */
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #FCFCFC;
+    --foreground: #091C12;
+    background-color: white !important;
   }
 }
 
+html, body {
+  background-color: white !important;
+}
+
 body {
-  background: var(--background);
+  background: white;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-reverse {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 180s linear infinite;
+}
+
+.animate-marquee-reverse {
+  animation: marquee-reverse 180s linear infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 15s linear infinite;
+}
+
+button, a, select, input[type="checkbox"], input[type="radio"] {
+  cursor: pointer;
+}
+
+button:disabled, a:disabled, select:disabled, input:disabled {
+  cursor: not-allowed;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+main::-webkit-scrollbar {
+  width: 8px;
+}
+
+main::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+main::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+main::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

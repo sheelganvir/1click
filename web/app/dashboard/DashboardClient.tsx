@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { emptyProfile, UserProfile } from '@/lib/profile'
 import * as pdfjsLib from 'pdfjs-dist'
@@ -11,54 +12,123 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString()
 
-// Reusable Input component
-function Input({ label, value, onChange, type = "text", required = false, placeholder = "", prefix = "", numericOnly = false }: any) {
+import GeometricBackground from '@/components/GeometricBackground'
+
+const NAV_ITEMS = [
+  { id: 'personal', label: 'Personal', icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+  { id: 'contact', label: 'Contact', icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg> },
+  { id: 'address', label: 'Address', icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> },
+  { id: 'links', label: 'Links', icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> },
+  { id: 'education', label: 'Education', icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.42 10.922a2 2 0 0 1-.01 2.83l-7.11 7.11a2 2 0 0 1-2.82 0l-7.11-7.11a2 2 0 0 1-.01-2.83l7.11-7.11a2 2 0 0 1 2.82 0l7.11 7.11z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg> },
+  { id: 'experience', label: 'Experience', icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> },
+  { id: 'skills', label: 'Skills', icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> },
+  { id: 'achievements', label: 'Achievements', icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> },
+  { id: 'preferences', label: 'Preferences', icon: <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg> },
+] as const
+
+type SectionId = (typeof NAV_ITEMS)[number]['id']
+
+function Input({ label, value, onChange, type = 'text', required = false, placeholder = '', prefix = '', numericOnly = false }: any) {
   return (
     <div>
-      <label className="block text-sm font-bold text-gray-800 mb-1">
-        {required && <span className="text-red-500 mr-1">*</span>}{label}
+      <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-widest text-foreground/70">
+        {required && <span className="mr-1 text-red-500">*</span>}
+        {label}
       </label>
       <div className="relative">
         {prefix && (
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <span className="text-gray-500 font-medium">{prefix}</span>
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+            <span className="font-bold text-foreground/50">{prefix}</span>
           </div>
         )}
         <input
-          type={type} 
-          value={value} 
-          onChange={e => {
-            let val = e.target.value;
-            if (numericOnly) {
-              val = val.replace(/[^0-9./]/g, '');
-            }
-            onChange(val);
-          }} 
+          type={type}
+          value={value}
+          onChange={(e) => {
+            let val = e.target.value
+            if (numericOnly) val = val.replace(/[^0-9./]/g, '')
+            onChange(val)
+          }}
           placeholder={placeholder}
-          className={`w-full rounded-md border border-gray-300 bg-white py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none ${prefix ? 'pl-10 pr-4' : 'px-4'}`}
+          className={`w-full rounded-xl border border-light-accent bg-white/50 backdrop-blur-sm py-3 text-sm font-medium text-foreground outline-none transition-all focus:border-accent focus:bg-white focus:ring-4 focus:ring-accent/20 hover:border-accent/50 ${prefix ? 'pl-9 pr-4' : 'px-4'}`}
         />
       </div>
     </div>
   )
 }
 
-// Reusable Select component
 function Select({ label, value, onChange, options, required = false }: any) {
   return (
     <div>
-      <label className="block text-sm font-bold text-gray-800 mb-1">
-        {required && <span className="text-red-500 mr-1">*</span>}{label}
+      <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-widest text-foreground/70">
+        {required && <span className="mr-1 text-red-500">*</span>}
+        {label}
       </label>
       <select
-        value={value} 
-        onChange={e => onChange(e.target.value)}
-        className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-light-accent bg-white/50 backdrop-blur-sm px-4 py-3 text-sm font-medium text-foreground outline-none transition-all focus:border-accent focus:bg-white focus:ring-4 focus:ring-accent/20 hover:border-accent/50"
       >
         <option value="">Select...</option>
-        {options.map((o: string) => <option key={o} value={o}>{o}</option>)}
+        {options.map((o: string) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
       </select>
     </div>
   )
+}
+
+function SectionCard({ id, title, children }: { id: SectionId; title: string; children: ReactNode }) {
+  const navItem = NAV_ITEMS.find((item) => item.id === id);
+  return (
+    <section id={id} className="scroll-mt-6 rounded-2xl border border-light-accent bg-cards/80 backdrop-blur-md p-6 sm:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] relative overflow-hidden group">
+      <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-accent to-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100 shadow-[0_0_15px_var(--glow)]"></div>
+      <h2 className="mb-6 border-b border-light-accent pb-4 text-xl font-extrabold text-foreground flex items-center gap-3">
+        {navItem && <span className="text-primary drop-shadow-[0_0_8px_var(--soft-glow)]">{navItem.icon}</span>}
+        {title}
+      </h2>
+      {children}
+    </section>
+  )
+}
+
+function getInitials(firstName: string, lastName: string, email: string) {
+  const first = firstName.trim()
+  const last = lastName.trim()
+  if (first || last) return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase()
+  return email.slice(0, 2).toUpperCase()
+}
+
+function getProfileCompletion(profile: UserProfile) {
+  const sectionChecks: Record<string, boolean[]> = {
+    personal: [!!profile.firstName, !!profile.lastName],
+    contact: [!!profile.email, !!profile.phone],
+    address: [!!profile.city, !!profile.address],
+    links: [!!profile.linkedin],
+    education: [profile.education.length > 0],
+    experience: [profile.workExperience.length > 0],
+    skills: [profile.skills.length > 0],
+    achievements: [!!profile.achievements],
+    preferences: [!!profile.expectedSalary],
+  }
+
+  let totalChecks = 0
+  let totalFilled = 0
+  const remainingPerSection: Record<string, number> = {}
+
+  for (const [sectionId, checks] of Object.entries(sectionChecks)) {
+    const filled = checks.filter(Boolean).length
+    totalChecks += checks.length
+    totalFilled += filled
+    remainingPerSection[sectionId] = checks.length - filled
+  }
+
+  const percent = Math.round((totalFilled / totalChecks) * 100)
+  const remaining = totalChecks - totalFilled
+
+  return { percent, remaining, remainingPerSection }
 }
 
 const COUNTRIES = [
@@ -69,7 +139,7 @@ export default function DashboardClient({ userId, email, initialProfile }: { use
   const supabase = createClient()
   const router = useRouter()
   
-  const [profile, setProfile] = useState<UserProfile>(() => {
+  const getInitialProfileObj = () => {
     const p = emptyProfile()
     // Map snake_case from DB to camelCase in frontend
     p.firstName = initialProfile.first_name || ''
@@ -116,7 +186,10 @@ export default function DashboardClient({ userId, email, initialProfile }: { use
     p.additionalInfo = initialProfile.additional_info || ''
     p.achievements = initialProfile.achievements || ''
     return p
-  })
+  }
+
+  const [profile, setProfile] = useState<UserProfile>(getInitialProfileObj)
+  const [savedProfile, setSavedProfile] = useState<UserProfile>(getInitialProfileObj)
   
   const [file, setFile] = useState<File | null>(null)
   const [resumeName, setResumeName] = useState(initialProfile.resume_path ? initialProfile.resume_path.split('/').pop() : '')
@@ -137,6 +210,59 @@ export default function DashboardClient({ userId, email, initialProfile }: { use
   const [newPassword, setNewPassword] = useState('')
   const [settingsMsg, setSettingsMsg] = useState('')
   const [settingsLoading, setSettingsLoading] = useState(false)
+  const [activeSection, setActiveSection] = useState<SectionId>('personal')
+  const [showGroqKey, setShowGroqKey] = useState(false)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [savingGroq, setSavingGroq] = useState(false)
+  
+  const completion = useMemo(() => getProfileCompletion(profile), [profile])
+  const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || email.split('@')[0]
+  const initials = getInitials(profile.firstName, profile.lastName, email)
+  const hasUnsavedChanges = JSON.stringify(profile) !== JSON.stringify(savedProfile)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
+        if (visible?.target?.id) {
+          const newActiveId = visible.target.id as SectionId;
+          setActiveSection(newActiveId);
+          // Scroll the sidebar navigation item into view
+          const navItem = document.getElementById(`nav-${newActiveId}`);
+          if (navItem) {
+            navItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+      },
+      { rootMargin: '-20% 0px -55% 0px', threshold: [0.1, 0.3, 0.6] }
+    )
+
+    NAV_ITEMS.forEach(({ id }) => {
+      const el = document.getElementById(id)
+      if (el) observer.observe(el)
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
+  const scrollToSection = (id: SectionId) => {
+    setActiveSection(id)
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const handleSaveGroqKey = () => {
+    setSavingGroq(true)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('groqKey', groqKey)
+    }
+    setTimeout(() => {
+      setSavingGroq(false)
+      setMsg('GROQ API Key saved locally.')
+    }, 500)
+  }
 
   const handleUpdateCredentials = async () => {
     setSettingsLoading(true)
@@ -411,6 +537,8 @@ ${text.substring(0, 15000)}`
       setMsg('Error saving profile: ' + error.message)
     } else {
       setMsg('Profile saved successfully!')
+      setLastSavedAt(new Date())
+      setSavedProfile(profile)
       router.refresh()
     }
     
@@ -423,70 +551,250 @@ ${text.substring(0, 15000)}`
   }
 
   return (
-    <div className="bg-white shadow rounded-xl p-8 space-y-10">
-      <div className="flex justify-between items-center border-b pb-4">
-        <div>
-          <p className="text-sm text-gray-500">Signed in as</p>
-          <p className="font-medium text-gray-900">{email}</p>
-        </div>
-        <div className="space-x-4">
-          <button onClick={() => setIsSettingsOpen(true)} className="text-gray-600 hover:text-gray-900 text-sm font-medium cursor-pointer">Settings</button>
-          <a href="/connect" className="text-indigo-600 hover:underline text-sm font-medium cursor-pointer">Connect Extension</a>
-          <button onClick={handleSignOut} className="text-red-600 hover:underline text-sm font-medium cursor-pointer">Sign Out</button>
-        </div>
-      </div>
+    <div className="flex flex-col h-screen bg-transparent font-sans text-foreground overflow-hidden relative">
+      
+      {/* Background Shapes */}
+      <GeometricBackground />
 
-      {/* Resume Upload */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 text-gray-900">Resume & Autofill</h2>
-        <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-800 mb-1">
-              Groq API Key (Optional, for web-based parsing)
-            </label>
-            <p className="text-xs text-gray-500 mb-2">If your extension is not connected, enter your Groq API key here to autofill your profile from your resume.</p>
-            <div className="flex gap-2">
-              <input
-                type="password"
-                value={groqKey}
-                onChange={e => setGroqKey(e.target.value)}
-                placeholder="gsk_..."
-                className="flex-1 md:w-1/2 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              />
-              <button 
-                onClick={() => {
-                  if (groqKey.trim()) {
-                    localStorage.setItem('groqKey', groqKey.trim());
-                    setMsg('Groq API Key saved locally!');
-                  } else {
-                    localStorage.removeItem('groqKey');
-                    setMsg('Groq API Key removed!');
-                  }
-                  setTimeout(() => setMsg(''), 3000);
-                }}
-                className="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900 font-bold text-sm cursor-pointer"
-              >
-                Save Key
-              </button>
+      {/* Global Dashboard Header */}
+      <header className="shrink-0 h-[88px] z-[60] flex items-center justify-between px-8 py-4 bg-transparent pointer-events-auto relative">
+        {/* Left: Text Titles */}
+        <div className="flex items-center gap-12">
+          <Link href="/" className="text-xl font-bold tracking-wider text-black hover:opacity-80 transition-opacity">
+            1Click<span className="text-primary">.</span>JOBS
+          </Link>
+          <div className="hidden md:block text-[11px] font-bold uppercase tracking-widest text-black/80 leading-relaxed">
+            Extension /<br />Job Autofill
+          </div>
+        </div>
+
+        {/* Center: Navigation Links */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:flex items-center gap-12">
+          <nav className="flex items-center gap-8 text-sm font-bold tracking-widest text-black">
+            <Link href="/" className="hover:text-primary transition-colors group relative">
+              HOME<span className="text-primary transition-opacity opacity-0 group-hover:opacity-100 relative -top-0.5">.</span>
+            </Link>
+            <Link href="/dashboard" className="text-primary group relative">
+              DASHBOARD<span className="text-primary relative -top-0.5">.</span>
+            </Link>
+          </nav>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-6">
+          <div className="hidden sm:flex items-center gap-2 text-sm font-bold text-black">
+            <span>❤️ Enjoying the app?</span>
+            <a href="https://github.com" target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:text-[#0B7A2A] transition-colors">
+              ⭐ Star on GitHub
+            </a>
+          </div>
+        </div>
+      </header>
+
+      {/* Content Wrapper */}
+      <div className="flex flex-1 overflow-hidden relative z-10">
+
+      {/* Sidebar */}
+      <aside className="w-72 flex-shrink-0 flex flex-col z-40 bg-white border border-light-accent rounded-3xl m-8 mt-4 mb-8 shadow-[0_20px_60px_rgba(0,0,0,0.05)] overflow-hidden relative">
+        
+        {/* Profile / Progress Header */}
+        <div className="p-6 border-b border-light-accent/50 bg-white/50 backdrop-blur-sm relative">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-white font-extrabold shadow-[0_4px_15px_var(--soft-glow)] text-lg">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-base font-extrabold text-black">
+                {displayName}
+              </h2>
+              <p className="truncate text-[10px] font-bold text-black/60">{email}</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-4 pt-2">
-            <input 
-              type="file" accept="application/pdf"
-              onChange={handleFileUpload}
-              disabled={parsingResume || saving}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 disabled:opacity-50 file:cursor-pointer"
-            />
-            {parsingResume && <span className="text-sm text-indigo-600 whitespace-nowrap font-bold animate-pulse">Extracting profile...</span>}
-            {!parsingResume && resumeName && <span className="text-sm text-gray-600 whitespace-nowrap font-medium">Current: {resumeName}</span>}
+          <div className="flex items-center gap-3">
+            <div className="h-1.5 flex-1 rounded-full bg-light-accent/30 overflow-hidden relative">
+              <div 
+                className="absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ease-out bg-primary shadow-[0_0_10px_var(--primary)]"
+                style={{ width: `${completion.percent}%` }}
+              />
+            </div>
+            <span className="text-xs font-extrabold text-primary">
+              {completion.percent}%
+            </span>
           </div>
         </div>
-      </div>
 
-      {/* Personal Info */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Personal Information</h2>
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto custom-scrollbar py-4 space-y-1">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              id={`nav-${item.id}`}
+              onClick={() => {
+                setActiveSection(item.id)
+                document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              className={`group flex w-full items-center justify-between px-6 py-3 text-sm font-extrabold transition-all duration-200 ${
+                activeSection === item.id
+                  ? 'bg-light-accent/10 text-primary relative'
+                  : 'text-black/70 hover:bg-light-accent/5 hover:text-black'
+              }`}
+            >
+              {activeSection === item.id && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-primary shadow-[0_0_8px_var(--glow)] rounded-r-md"></div>
+              )}
+              <div className="flex items-center gap-3">
+                <span className={`transition-transform duration-200 ${activeSection === item.id ? 'scale-110 drop-shadow-[0_0_8px_var(--soft-glow)]' : 'group-hover:scale-110'}`}>
+                  {item.icon}
+                </span>
+                {item.label}
+              </div>
+              {completion.remainingPerSection[item.id] > 0 && (
+                <span className="flex h-5 items-center justify-center rounded-md px-2 text-[10px] font-bold bg-light-accent/30 text-primary">
+                  {completion.remainingPerSection[item.id]}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        {/* Actions Bottom */}
+        <div className="border-t border-light-accent/50 py-4 bg-white/50 backdrop-blur-sm space-y-2">
+          {hasUnsavedChanges ? (
+            <div className="px-4">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#0B7A2A] to-primary py-3 text-sm font-extrabold text-white shadow-[0_4px_15px_var(--soft-glow)] hover:shadow-[0_6px_20px_var(--glow)] transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 border border-primary/50"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          ) : (
+            <div className="flex w-full items-center justify-center gap-2 py-3 text-xs font-extrabold text-primary border-b border-light-accent/20 cursor-default mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_0_5px_var(--soft-glow)]"><path d="M20 6 9 17l-5-5"/></svg>
+              Up to date
+            </div>
+          )}
+
+          <div className="flex px-2">
+            <button onClick={() => setIsSettingsOpen(true)} className="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold text-black/60 hover:text-primary transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-1"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              Settings
+            </button>
+            <button onClick={() => router.push('/connect')} className="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold text-black/60 hover:text-primary transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-1"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
+              Connect Extension
+            </button>
+            <button onClick={handleSignOut} className="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold text-red-500/80 hover:text-red-500 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-1"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main 
+        className="flex-1 overflow-y-auto custom-scrollbar relative z-10 pt-4 pb-10"
+        style={{
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 2rem)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 2rem)'
+        }}
+      >
+        <div className="max-w-5xl p-8 pt-0">
+          
+          {/* Top Cards Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 mt-6 relative">
+            {/* Groq Key Card */}
+            <div className="bg-white rounded-3xl border border-light-accent p-6 shadow-[0_8px_30px_rgba(0,0,0,0.03)] relative overflow-hidden group z-10">
+              <div className="absolute -right-12 -top-12 opacity-5 pointer-events-none transition-transform duration-700 group-hover:scale-110">
+                <svg width="150" height="150" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
+              </div>
+              <h3 className="text-sm font-extrabold text-primary flex items-center gap-2 mb-2 relative z-10">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+                GROQ API KEY
+              </h3>
+              <p className="text-[10px] font-bold text-black/50 mb-4 max-w-[80%] relative z-10 leading-relaxed">
+                Optional. Used for web-based resume parsing when extension is not connected.
+              </p>
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="relative flex-1 bg-white rounded-xl border border-light-accent focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all shadow-sm">
+                  <input
+                    type={showGroqKey ? "text" : "password"}
+                    value={groqKey}
+                    onChange={(e) => setGroqKey(e.target.value)}
+                    placeholder="........................"
+                    className="w-full bg-transparent border-none text-sm font-extrabold text-black px-4 py-3 outline-none placeholder:text-black/20 tracking-widest"
+                  />
+                  <div 
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-black/30 cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => setShowGroqKey(!showGroqKey)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSaveGroqKey}
+                  disabled={savingGroq}
+                  className="shrink-0 bg-gradient-to-b from-[#0B7A2A] to-primary text-white px-6 py-3 rounded-xl text-sm font-extrabold shadow-[0_4px_15px_var(--soft-glow)] hover:shadow-[0_6px_20px_var(--glow)] transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50"
+                >
+                  {savingGroq ? 'Saving...' : 'Save Key'}
+                </button>
+              </div>
+            </div>
+
+            {/* Resume Upload Card */}
+            <div className="bg-white rounded-3xl border border-light-accent p-6 shadow-[0_8px_30px_rgba(0,0,0,0.03)] relative z-10">
+              <h3 className="text-sm font-extrabold text-primary flex items-center gap-2 mb-2 relative z-10">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>
+                UPLOAD RESUME
+              </h3>
+              <p className="text-[10px] font-bold text-black/50 mb-4 relative z-10 w-[70%] leading-relaxed">
+                PDF only. Autofills your profile from resume content.
+              </p>
+              
+              <div className="flex items-center gap-3 bg-white rounded-xl p-2 border border-light-accent relative z-10 shadow-sm">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-500 text-[11px] font-extrabold text-white shadow-sm shadow-red-500/20">
+                    PDF
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-extrabold text-black">
+                      {resumeName || 'No resume uploaded'}
+                    </p>
+                    <p className="text-[10px] font-bold text-black/40">
+                      {resumeName ? 'Ready to save' : 'Select a file'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 pr-1">
+                  <label className="shrink-0 cursor-pointer rounded-xl border border-primary bg-white px-5 py-2.5 text-xs font-extrabold text-primary hover:bg-light-accent/10 hover:shadow-[0_0_15px_var(--soft-glow)] transition-all active:scale-95 text-center">
+                    {parsingResume ? 'PARSING...' : (resumeName ? 'REPLACE' : 'UPLOAD')}
+                    <input type="file" accept=".pdf" className="hidden" onChange={handleFileUpload} disabled={parsingResume} />
+                  </label>
+                  {resumeName && (
+                    <button
+                      onClick={() => {
+                        setFile(null)
+                        setResumeName('')
+                        setMsg('')
+                      }}
+                      className="p-2 text-black/30 hover:text-red-500 rounded-lg transition-colors"
+                      title="Remove resume"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Sections */}
+          <div className="space-y-6 pb-32">
+            <SectionCard id="personal" title="Personal Information">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <Input label="First Name" required value={profile.firstName} onChange={(v: string) => setProfile({...profile, firstName: v})} placeholder="e.g. John" />
           <Input label="Middle Name" value={profile.middleName} onChange={(v: string) => setProfile({...profile, middleName: v})} placeholder="e.g. Robert" />
@@ -500,11 +808,9 @@ ${text.substring(0, 15000)}`
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input label="Date of Birth" type="date" value={profile.dateOfBirth} onChange={(v: string) => setProfile({...profile, dateOfBirth: v})} />
         </div>
-      </div>
+            </SectionCard>
 
-      {/* Contact */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Contact</h2>
+            <SectionCard id="contact" title="Contact">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input label="Email Address" required type="email" value={profile.email} onChange={(v: string) => setProfile({...profile, email: v})} placeholder="john.doe@example.com" />
           <Select label="Phone Type" value={profile.phoneType} onChange={(v: string) => setProfile({...profile, phoneType: v})} options={['Mobile', 'Home', 'Work']} />
@@ -520,11 +826,9 @@ ${text.substring(0, 15000)}`
             <div className="w-2/3"><Input label="Phone" required value={profile.phone} onChange={(v: string) => setProfile({...profile, phone: v})} placeholder="1234567890" numericOnly /></div>
           </div>
         </div>
-      </div>
+            </SectionCard>
 
-      {/* Address */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Address</h2>
+            <SectionCard id="address" title="Address">
         <div className="mb-4">
           <Input label="Address Line" value={profile.address} onChange={(v: string) => setProfile({...profile, address: v})} placeholder="123 Main St, Apt 4B" />
         </div>
@@ -537,11 +841,9 @@ ${text.substring(0, 15000)}`
           <Select label="Nationality/Citizenship" value={profile.nationality} onChange={(v: string) => setProfile({...profile, nationality: v})} options={COUNTRIES} />
           <Input label="Postal Code" value={profile.zip} onChange={(v: string) => setProfile({...profile, zip: v})} placeholder="e.g. 400001, 94105" numericOnly />
         </div>
-      </div>
+            </SectionCard>
 
-      {/* Links */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Links</h2>
+            <SectionCard id="links" title="Links">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input label="LinkedIn URL" value={profile.linkedin} onChange={(v: string) => setProfile({...profile, linkedin: v})} placeholder="https://linkedin.com/in/johndoe" />
           <Input label="GitHub URL" value={profile.github} onChange={(v: string) => setProfile({...profile, github: v})} placeholder="https://github.com/johndoe" />
@@ -551,14 +853,12 @@ ${text.substring(0, 15000)}`
           <Input label="LeetCode URL" value={profile.leetcode} onChange={(v: string) => setProfile({...profile, leetcode: v})} placeholder="https://leetcode.com/u/johndoe" />
           <Input label="GeeksforGeeks URL" value={profile.gfg} onChange={(v: string) => setProfile({...profile, gfg: v})} placeholder="https://auth.geeksforgeeks.org/user/johndoe" />
         </div>
-      </div>
+            </SectionCard>
 
-      {/* Education */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Education</h2>
+            <SectionCard id="education" title="Education">
         {profile.education.map((edu, i) => (
-          <div key={i} className="mb-6 p-4 border rounded-lg bg-gray-50 relative">
-            <button onClick={() => setProfile({...profile, education: profile.education.filter((_, idx) => idx !== i)})} className="absolute top-2 right-2 text-red-500 hover:text-red-700 text-sm font-bold cursor-pointer">Remove</button>
+          <div key={i} className="relative mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <button onClick={() => setProfile({...profile, education: profile.education.filter((_, idx) => idx !== i)})} className="absolute top-3 right-3 text-sm font-bold text-red-500 hover:text-red-700">Remove</button>
             <h3 className="font-bold mb-4 text-gray-900">Education {i + 1}</h3>
             <div className="mb-4"><Input label="College Name" required value={edu.collegeName} onChange={(v: string) => { const e = [...profile.education]; e[i].collegeName = v; setProfile({...profile, education: e}) }} placeholder="e.g. Stanford University, IIT Bombay" /></div>
             <div className="mb-4"><Input label="Branch/Specialization" value={edu.branch || ''} onChange={(v: string) => { const e = [...profile.education]; e[i].branch = v; setProfile({...profile, education: e}) }} placeholder="e.g. Computer Science, Mechanical Engineering" /></div>
@@ -570,24 +870,22 @@ ${text.substring(0, 15000)}`
               <Input label="Start Date" value={edu.startDate} onChange={(v: string) => { const e = [...profile.education]; e[i].startDate = v; setProfile({...profile, education: e}) }} placeholder="e.g. Aug 2018, 08/2018" />
               <div>
                 <Input label="End Date" value={edu.endDate} onChange={(v: string) => { const e = [...profile.education]; e[i].endDate = v; setProfile({...profile, education: e}) }} placeholder="e.g. May 2022, Present" />
-                <label className="flex items-center mt-2 text-sm font-medium text-gray-700">
-                  <input type="checkbox" checked={edu.currentlyStudyHere} onChange={(e) => { const ed = [...profile.education]; ed[i].currentlyStudyHere = e.target.checked; setProfile({...profile, education: ed}) }} className="mr-2 rounded" />
+                <label className="flex items-center mt-2 text-sm font-medium text-black/70">
+                  <input type="checkbox" checked={edu.currentlyStudyHere} onChange={(e) => { const ed = [...profile.education]; ed[i].currentlyStudyHere = e.target.checked; setProfile({...profile, education: ed}) }} className="mr-2 rounded border-light-accent text-primary focus:ring-primary/20" />
                   I currently study here
                 </label>
               </div>
             </div>
           </div>
         ))}
-        <button onClick={() => setProfile({...profile, education: [...profile.education, { collegeName: '', branch: '', degree: '', gpa: '', startDate: '', endDate: '', currentlyStudyHere: false }]})} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">+ Add Education</button>
-      </div>
+        <button onClick={() => setProfile({...profile, education: [...profile.education, { collegeName: '', branch: '', degree: '', gpa: '', startDate: '', endDate: '', currentlyStudyHere: false }]})} className="rounded-xl border border-light-accent bg-white px-4 py-2 text-sm font-extrabold text-primary hover:bg-light-accent/10 transition-colors shadow-sm">+ Add Education</button>
+            </SectionCard>
 
-      {/* Work Experience */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Work Experience</h2>
+            <SectionCard id="experience" title="Work Experience">
         {profile.workExperience.map((work, i) => (
-          <div key={i} className="mb-6 p-4 border rounded-lg bg-gray-50 relative">
-            <button onClick={() => setProfile({...profile, workExperience: profile.workExperience.filter((_, idx) => idx !== i)})} className="absolute top-2 right-2 text-red-500 hover:text-red-700 text-sm font-bold cursor-pointer">Remove</button>
-            <h3 className="font-bold mb-4 text-gray-900">Work Experience {i + 1}</h3>
+          <div key={i} className="relative mb-6 rounded-2xl border border-light-accent bg-white/50 p-6 shadow-sm">
+            <button onClick={() => setProfile({...profile, workExperience: profile.workExperience.filter((_, idx) => idx !== i)})} className="absolute top-4 right-4 text-sm font-extrabold text-red-500 hover:text-red-700 transition-colors">Remove</button>
+            <h3 className="font-extrabold mb-4 text-black">Work Experience {i + 1}</h3>
             <div className="mb-4"><Input label="Company" required value={work.company} onChange={(v: string) => { const w = [...profile.workExperience]; w[i].company = v; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Google, TCS" /></div>
             <div className="mb-4"><Input label="Job Title" required value={work.jobTitle} onChange={(v: string) => { const w = [...profile.workExperience]; w[i].jobTitle = v; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Software Engineer" /></div>
             <div className="mb-4"><Input label="Location" value={work.location} onChange={(v: string) => { const w = [...profile.workExperience]; w[i].location = v; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Remote, Bangalore" /></div>
@@ -595,82 +893,84 @@ ${text.substring(0, 15000)}`
               <Input label="Start Date" value={work.startDate} onChange={(v: string) => { const w = [...profile.workExperience]; w[i].startDate = v; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Jun 2022" />
               <div>
                 <Input label="End Date" value={work.endDate} onChange={(v: string) => { const w = [...profile.workExperience]; w[i].endDate = v; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Present" />
-                <label className="flex items-center mt-2 text-sm font-medium text-gray-700">
-                  <input type="checkbox" checked={work.currentlyWorkHere} onChange={(e) => { const w = [...profile.workExperience]; w[i].currentlyWorkHere = e.target.checked; setProfile({...profile, workExperience: w}) }} className="mr-2 rounded" />
+                <label className="flex items-center mt-2 text-sm font-medium text-black/70">
+                  <input type="checkbox" checked={work.currentlyWorkHere} onChange={(e) => { const w = [...profile.workExperience]; w[i].currentlyWorkHere = e.target.checked; setProfile({...profile, workExperience: w}) }} className="mr-2 rounded border-light-accent text-primary focus:ring-primary/20" />
                   I currently work here
                 </label>
               </div>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-bold text-gray-800 mb-1">Experience Summary</label>
-              <textarea value={work.summary} onChange={(e) => { const w = [...profile.workExperience]; w[i].summary = e.target.value; setProfile({...profile, workExperience: w}) }} placeholder="Brief overview of your role..." className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" rows={2}></textarea>
+              <label className="block text-[11px] font-extrabold uppercase tracking-widest text-black/70 mb-1.5">Experience Summary</label>
+              <textarea value={work.summary} onChange={(e) => { const w = [...profile.workExperience]; w[i].summary = e.target.value; setProfile({...profile, workExperience: w}) }} placeholder="Brief overview of your role..." className="w-full rounded-xl border border-light-accent bg-white px-4 py-3 text-sm font-medium text-black outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/20 hover:border-accent/50" rows={2}></textarea>
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">Job Description (Bullets)</label>
+              <label className="block text-[11px] font-extrabold uppercase tracking-widest text-black/70 mb-2">Job Description (Bullets)</label>
               {work.bullets.map((bullet, bIdx) => (
                 <div key={bIdx} className="flex gap-2 mb-2">
-                  <input type="text" value={bullet} onChange={(e) => { const w = [...profile.workExperience]; w[i].bullets[bIdx] = e.target.value; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Developed scalable microservices using Node.js..." className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" />
-                  <button onClick={() => { const w = [...profile.workExperience]; w[i].bullets = w[i].bullets.filter((_, idx) => idx !== bIdx); setProfile({...profile, workExperience: w}) }} className="px-3 text-gray-400 hover:text-red-500 cursor-pointer">✕</button>
+                  <input type="text" value={bullet} onChange={(e) => { const w = [...profile.workExperience]; w[i].bullets[bIdx] = e.target.value; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Developed scalable microservices using Node.js..." className="flex-1 rounded-xl border border-light-accent bg-white px-4 py-2 text-sm font-medium text-black outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/20 hover:border-accent/50" />
+                  <button onClick={() => { const w = [...profile.workExperience]; w[i].bullets = w[i].bullets.filter((_, idx) => idx !== bIdx); setProfile({...profile, workExperience: w}) }} className="px-3 text-black/40 hover:text-red-500 transition-colors">✕</button>
                 </div>
               ))}
-              <button onClick={() => { const w = [...profile.workExperience]; w[i].bullets.push(''); setProfile({...profile, workExperience: w}) }} className="px-4 py-2 mt-2 border border-gray-300 rounded-md text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">+ Add Bullet Point</button>
+              <button onClick={() => { const w = [...profile.workExperience]; w[i].bullets.push(''); setProfile({...profile, workExperience: w}) }} className="px-4 py-2 mt-2 border border-light-accent rounded-xl text-xs font-extrabold text-primary bg-white hover:bg-light-accent/10 transition-colors shadow-sm">+ Add Bullet Point</button>
             </div>
           </div>
         ))}
-        <button onClick={() => setProfile({...profile, workExperience: [...profile.workExperience, { company: '', jobTitle: '', location: '', startDate: '', endDate: '', currentlyWorkHere: false, summary: '', bullets: [] }]})} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">+ Add Work Experience</button>
-      </div>
+        <button onClick={() => setProfile({...profile, workExperience: [...profile.workExperience, { company: '', jobTitle: '', location: '', startDate: '', endDate: '', currentlyWorkHere: false, summary: '', bullets: [] }]})} className="rounded-xl border border-light-accent bg-white px-4 py-2 text-sm font-extrabold text-primary hover:bg-light-accent/10 transition-colors shadow-sm">+ Add Work Experience</button>
+            </SectionCard>
 
-      {/* Skills */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Skills</h2>
-        <div className="flex flex-wrap gap-2 mb-4">
+            <SectionCard id="skills" title="Skills & Languages">
+        <h3 className="mb-3 text-[11px] font-extrabold uppercase tracking-widest text-black/70">Skills</h3>
+        <div className="mb-6 flex flex-wrap gap-2">
           {profile.skills.map((skill, i) => (
-            <span key={i} className="bg-gray-100 border border-gray-200 text-gray-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+            <span key={i} className="flex items-center gap-2 rounded-full border border-light-accent bg-light-accent/10 px-3 py-1.5 text-xs font-bold text-black shadow-sm">
               {skill}
-              <button onClick={() => setProfile({...profile, skills: profile.skills.filter((_, idx) => idx !== i)})} className="text-gray-400 hover:text-red-500 font-bold cursor-pointer">✕</button>
+              <button onClick={() => setProfile({...profile, skills: profile.skills.filter((_, idx) => idx !== i)})} className="font-bold text-black/40 hover:text-red-500 transition-colors">&#10005;</button>
             </span>
           ))}
-          <input 
-            type="text" value={skillInput} onChange={e => setSkillInput(e.target.value)} placeholder="Add a skill and press Enter..."
-            onKeyDown={e => {
+          <input
+            type="text"
+            value={skillInput}
+            onChange={(e) => setSkillInput(e.target.value)}
+            placeholder="Add a skill and press Enter..."
+            onKeyDown={(e) => {
               if (e.key === 'Enter' && skillInput.trim()) {
-                e.preventDefault();
+                e.preventDefault()
                 if (!profile.skills.includes(skillInput.trim())) {
-                  setProfile({...profile, skills: [...profile.skills, skillInput.trim()]});
+                  setProfile({ ...profile, skills: [...profile.skills, skillInput.trim()] })
                 }
-                setSkillInput('');
+                setSkillInput('')
               }
             }}
-            className="border border-gray-300 bg-white px-4 py-1 rounded-full text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none w-64"
+            className="w-64 rounded-full border border-light-accent bg-white px-4 py-1.5 text-xs font-bold text-black outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/20 hover:border-accent/50"
           />
         </div>
-      </div>
 
-      {/* Languages */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Languages (Max 3)</h2>
-        <div className="flex flex-wrap gap-2 mb-4">
+        <h3 className="mb-3 text-[11px] font-extrabold uppercase tracking-widest text-black/70">Languages (Max 3)</h3>
+        <div className="mb-6 flex flex-wrap gap-2">
           {profile.languages.map((lang, i) => (
-            <span key={i} className="bg-indigo-100 border border-indigo-200 text-indigo-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+            <span key={i} className="flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary shadow-sm">
               {lang}
-              <button onClick={() => setProfile({...profile, languages: profile.languages.filter((_, idx) => idx !== i)})} className="text-indigo-400 hover:text-red-500 font-bold cursor-pointer">✕</button>
+              <button onClick={() => setProfile({...profile, languages: profile.languages.filter((_, idx) => idx !== i)})} className="font-bold text-primary/60 hover:text-red-500 transition-colors">&#10005;</button>
             </span>
           ))}
           {profile.languages.length < 3 && (
             <div className="relative">
-              <input 
+              <input
                 list="language-options"
-                type="text" value={langInput} onChange={e => setLangInput(e.target.value)} placeholder="Add a language..."
-                onKeyDown={e => {
+                type="text"
+                value={langInput}
+                onChange={(e) => setLangInput(e.target.value)}
+                placeholder="Add a language..."
+                onKeyDown={(e) => {
                   if (e.key === 'Enter' && langInput.trim()) {
-                    e.preventDefault();
+                    e.preventDefault()
                     if (!profile.languages.includes(langInput.trim())) {
-                      setProfile({...profile, languages: [...profile.languages, langInput.trim()]});
+                      setProfile({ ...profile, languages: [...profile.languages, langInput.trim()] })
                     }
-                    setLangInput('');
+                    setLangInput('')
                   }
                 }}
-                className="border border-gray-300 bg-white px-4 py-1 rounded-full text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none w-48"
+                className="w-48 rounded-full border border-light-accent bg-white px-4 py-1.5 text-xs font-bold text-black outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/20 hover:border-accent/50"
               />
               <datalist id="language-options">
                 <option value="English" />
@@ -687,32 +987,46 @@ ${text.substring(0, 15000)}`
             </div>
           )}
         </div>
-      </div>
 
-      {/* Certificates */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Certificates (Max 3)</h2>
+        <h3 className="mb-3 text-[11px] font-extrabold uppercase tracking-widest text-black/70 mt-6">Certificates (Max 3)</h3>
         <div className="space-y-4">
-          {[0, 1, 2].map(i => (
-            <Input 
-              key={i} 
-              label={`Certificate Link ${i + 1}`} 
-              value={profile.certificates[i] || ''} 
+          {[0, 1, 2].map((i) => (
+            <Input
+              key={i}
+              label={`Certificate Link ${i + 1}`}
+              value={profile.certificates[i] || ''}
               onChange={(v: string) => {
-                const newCerts = [...profile.certificates];
-                newCerts[i] = v;
-                setProfile({...profile, certificates: newCerts});
-              }} 
-              placeholder="https://..." 
+                const newCerts = [...profile.certificates]
+                newCerts[i] = v
+                setProfile({ ...profile, certificates: newCerts })
+              }}
+              placeholder="https://..."
             />
           ))}
         </div>
-      </div>
+            </SectionCard>
 
-      {/* EEO & Diversity */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">EEO & Diversity</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <SectionCard id="achievements" title="Achievements">
+          <textarea
+            value={profile.achievements}
+            onChange={(e) => setProfile({ ...profile, achievements: e.target.value })}
+            placeholder="List your key achievements, awards, or publications..."
+            className="w-full rounded-xl border border-light-accent bg-white px-4 py-3 text-sm font-medium text-black outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/20 hover:border-accent/50"
+            rows={4}
+          />
+            </SectionCard>
+
+            <SectionCard id="preferences" title="Preferences & EEO">
+        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Input label="Expected Annual Salary" value={profile.expectedSalary} onChange={(v: string) => setProfile({...profile, expectedSalary: v})} prefix="₹" placeholder="in LPA" numericOnly />
+          <Input label="When can you start your next job?" value={profile.availableStartDate} onChange={(v: string) => setProfile({...profile, availableStartDate: v})} placeholder="e.g. Immediately, 2 weeks notice" />
+        </div>
+        <div className="mb-6">
+          <label className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-widest text-black/70">Anything else we should know?</label>
+          <textarea value={profile.additionalInfo} onChange={(e) => setProfile({...profile, additionalInfo: e.target.value})} placeholder="For example: work authorization, availability, relocation preferences..." className="w-full rounded-xl border border-light-accent bg-white px-4 py-3 text-sm font-medium text-black outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/20 hover:border-accent/50" rows={4} />
+        </div>
+        <h3 className="mb-4 text-[11px] font-extrabold uppercase tracking-widest text-black/70">EEO & Diversity</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Select label="Are you authorized to work in the India?" value={profile.workAuthIndia} onChange={(v: string) => setProfile({...profile, workAuthIndia: v})} options={['Yes', 'No']} />
           <Select label="Will you require sponsorship?" value={profile.requireSponsorship} onChange={(v: string) => setProfile({...profile, requireSponsorship: v})} options={['Yes', 'No']} />
           <Select label="Do you have a disability?" value={profile.disability} onChange={(v: string) => setProfile({...profile, disability: v})} options={['Yes', 'No', 'Decline to state']} />
@@ -724,51 +1038,43 @@ ${text.substring(0, 15000)}`
           <Select label="Sexual Orientation" value={profile.sexualOrientation} onChange={(v: string) => setProfile({...profile, sexualOrientation: v})} options={['Heterosexual', 'Homosexual', 'Bisexual', 'Decline to state']} />
           <Select label="Pronouns" value={profile.pronouns} onChange={(v: string) => setProfile({...profile, pronouns: v})} options={['He/Him', 'She/Her', 'They/Them', 'Other']} />
         </div>
+            </SectionCard>
+          </div>
+
+          <p className="pb-6 text-center text-xs font-bold text-black/30">Made by Sheel Ganvir</p>
+        </div>
+      </main>
       </div>
 
-      {/* Achievements */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Achievements</h2>
-        <div>
-          <textarea value={profile.achievements} onChange={(e) => setProfile({...profile, achievements: e.target.value})} placeholder="List your key achievements, awards, or publications..." className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" rows={4}></textarea>
+      {hasUnsavedChanges && (
+        <div className="fixed bottom-8 left-0 right-0 z-40 flex pointer-events-none justify-center lg:left-72">
+          <div className="w-full max-w-5xl flex justify-end px-4 md:px-6">
+            <div className="animate-fade-in-up pointer-events-auto">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#0B7A2A] to-primary px-8 py-3.5 text-sm font-extrabold text-white shadow-[0_0_20px_var(--glow)] transition-all hover:-translate-y-1 hover:shadow-[0_0_30px_var(--glow)] disabled:pointer-events-none disabled:opacity-50 border border-[#0B7A2A]"
+              >
+                {saving ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Preferences */}
-      <div>
-        <h2 className="text-xl font-bold mb-4 border-b pb-2 text-gray-900">Preferences</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <Input label="Expected Annual Salary" value={profile.expectedSalary} onChange={(v: string) => setProfile({...profile, expectedSalary: v})} prefix="₹" placeholder="in LPA" numericOnly />
-          <Input label="When can you start your next job?" value={profile.availableStartDate} onChange={(v: string) => setProfile({...profile, availableStartDate: v})} placeholder="e.g. Immediately, 2 weeks notice" />
-        </div>
-        <div>
-          <label className="block text-sm font-bold text-gray-800 mb-1">Anything else we should know?</label>
-          <textarea value={profile.additionalInfo} onChange={(e) => setProfile({...profile, additionalInfo: e.target.value})} placeholder="For example: work authorization, availability, relocation preferences..." className="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" rows={4}></textarea>
-        </div>
-      </div>
-
-      {/* Save Button */}
-      <div className="pt-6 border-t flex items-center justify-between sticky bottom-0 bg-white py-4">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-indigo-600 text-white px-8 py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-bold text-lg shadow-md cursor-pointer disabled:cursor-not-allowed"
-          >
-            {saving ? 'Saving...' : 'Save Profile'}
-          </button>
-          {msg && <span className={`text-sm font-bold ${msg.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>{msg}</span>}
-        </div>
-        <div className="text-sm text-gray-400 font-medium italic">
-          Made by Sheel Ganvir
-        </div>
-      </div>
-
-      {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">Profile Settings</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
+            <h2 className="mb-6 text-2xl font-bold text-slate-900">Profile Settings</h2>
             
             <div className="mb-4">
               <label className="block text-sm font-bold text-gray-800 mb-2">Update Email</label>
@@ -795,7 +1101,7 @@ ${text.substring(0, 15000)}`
             <button 
               onClick={handleUpdateCredentials}
               disabled={settingsLoading}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 font-bold text-sm w-full disabled:opacity-50 mb-4 cursor-pointer disabled:cursor-not-allowed"
+              className="mb-4 w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {settingsLoading ? 'Updating...' : 'Update Credentials'}
             </button>
