@@ -23,7 +23,7 @@ export default function Footer() {
             </p>
             
             <p className="text-[12px] font-bold text-black/60 leading-relaxed max-w-sm mb-6">
-              1Click is a privacy-first, AI-powered Chrome extension and Next.js dashboard that autofills complex job applications across major ATS platforms.
+              <span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span> is a privacy-first, AI-powered Chrome extension and Next.js dashboard that autofills complex job applications across major ATS platforms.
             </p>
             
             <div className="flex flex-col gap-4 mt-6">
@@ -173,7 +173,7 @@ export default function Footer() {
                       </svg>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[11px] font-extrabold text-black group-hover:text-primary transition-colors">1Click Chrome Extension</span>
+                      <span className="text-[11px] font-extrabold text-black group-hover:text-primary transition-colors"><span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span> Chrome Extension</span>
                       <span className="text-[9px] font-bold text-black/50">Available on Chrome Web Store</span>
                     </div>
                   </div>
@@ -204,7 +204,7 @@ export default function Footer() {
           {/* Center: Copyright & Links */}
           <div className="flex flex-col items-center justify-center gap-3 flex-1">
             <div className="text-[11px] font-extrabold text-black">
-              © 2025 <span className="text-primary">1Click</span>. All rights reserved.
+              © 2025 <span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span>. All rights reserved.
             </div>
             <div className="flex items-center gap-4 text-[10px] font-extrabold text-black">
               <Link href="#" className="hover:text-primary transition-colors">Privacy Policy</Link>
@@ -222,7 +222,7 @@ export default function Footer() {
             
             <div className="flex flex-col items-start gap-1">
               <div className="text-[11px] font-extrabold text-black">
-                A Product by <span className="text-primary">1Click Company</span>
+                A Product by <span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span> Company
               </div>
               <div className="text-[11px] font-extrabold text-black flex items-center gap-1.5">
                 Made by <span className="text-primary">Sheel Ganvir</span>

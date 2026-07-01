@@ -561,7 +561,7 @@ ${text.substring(0, 15000)}`
         {/* Left: Text Titles */}
         <div className="flex items-center gap-12">
           <Link href="/" className="text-xl font-bold tracking-wider text-black hover:opacity-80 transition-opacity">
-            1Click<span className="text-primary">.</span>JOBS
+            <span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span><span className="text-primary">.</span>JOBS
           </Link>
           <div className="hidden md:block text-[11px] font-bold uppercase tracking-widest text-black/80 leading-relaxed">
             Extension /<br />Job Autofill

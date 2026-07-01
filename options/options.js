@@ -50,9 +50,21 @@ function updateAccount() {
     const div = document.getElementById('account-info');
     if (state.signedIn) {
       div.innerHTML = `
-        <p>Signed in as: <strong>${state.email}</strong></p>
-        <button id="btn-dashboard" style="background: #f3f4f6; color: #374151; margin-right: 10px;">Open Dashboard</button>
-        <button id="btn-signout" style="background: #ef4444;">Sign Out</button>
+        <div class="account-status">
+          <span style="color: #6b7280;">Signed in as:</span>
+          <strong>${state.email}</strong>
+          <svg style="margin-left: auto; color: #059669;" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="account-buttons">
+          <button id="btn-dashboard" class="outline-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+            Open Dashboard
+          </button>
+          <button id="btn-signout" class="danger-outline-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+            Sign Out
+          </button>
+        </div>
       `;
       document.getElementById('btn-dashboard').addEventListener('click', () => {
         window.open(`${CONFIG.WEB_APP_URL}/dashboard`);
@@ -62,8 +74,13 @@ function updateAccount() {
       });
     } else {
       div.innerHTML = `
-        <p>Not signed in.</p>
-        <button id="btn-signin">Sign in / Sign up</button>
+        <div class="account-status">
+          <span style="color: #6b7280;">Not signed in.</span>
+        </div>
+        <button id="btn-signin" class="primary-btn" style="width: 100%; justify-content: center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Sign in / Sign up
+        </button>
       `;
       document.getElementById('btn-signin').addEventListener('click', () => {
         window.open(`${CONFIG.WEB_APP_URL}/connect`);

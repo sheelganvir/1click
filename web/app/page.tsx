@@ -26,7 +26,7 @@ export default async function Home({
         {/* Left: Text Titles */}
         <div className="flex items-center gap-12">
           <Link href="/" className="text-xl font-bold tracking-wider text-black hover:opacity-80 transition-opacity">
-            1Click<span className="text-primary">.</span>JOBS
+            <span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span><span className="text-primary">.</span>JOBS
           </Link>
           <div className="hidden md:block text-[11px] font-bold uppercase tracking-widest text-black/80 leading-relaxed">
             Extension /<br />Job Autofill
@@ -100,7 +100,7 @@ export default async function Home({
             Smart. <span className="text-primary">Simple.</span> Secure.
           </p>
           <p className="text-[11px] font-bold text-black/80 leading-relaxed max-w-sm">
-            Let 1Click.JOBS autofill applications across any career site instantly<br />
+            Let <span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span>.JOBS autofill applications across any career site instantly<br />
             while you focus on your future.
           </p>
         </div>

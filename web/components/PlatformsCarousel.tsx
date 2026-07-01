@@ -144,7 +144,7 @@ export default function PlatformsCarousel() {
           Works on <span className="text-primary">50+ Platforms</span>
         </h2>
         <p className="text-sm sm:text-base font-bold text-black/50 leading-relaxed">
-          1Click.JOBS autofills applications across major job boards and ATS platforms — saving you time and effort.
+          <span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span>.JOBS autofills applications across major job boards and ATS platforms — saving you time and effort.
         </p>
       </div>
 
@@ -160,7 +160,7 @@ export default function PlatformsCarousel() {
           </div>
           <p className="text-sm font-bold text-black/70 leading-relaxed">
             <span className="text-black">More platforms supported regularly. Can&apos;t find your platform?</span>{' '}
-            1Click.JOBS works on most standard job application forms automatically.
+            <span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span>.JOBS works on most standard job application forms automatically.
           </p>
         </div>
       </div>
