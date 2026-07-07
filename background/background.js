@@ -31,6 +31,7 @@ const RULES = [
   { regex: /\bgpa\b/i, field: 'education.0.gpa' },
   { regex: /\b(company|employer)\b/i, field: 'workExperience.0.company' },
   { regex: /\b(job title|role)\b/i, field: 'workExperience.0.jobTitle' },
+  { regex: /\b(graduation|grad.*date|grad.*year|end.*date)\b/i, field: 'education.0.endDate' },
 
   // Links
   { regex: /\blinkedin\b/i, field: 'linkedin' },
@@ -127,6 +128,12 @@ chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
     chrome.storage.local.set({ session: msg.session }, () => {
       fetchProfile().catch(console.error);
       sendResponse({ ok: true });
+    });
+    return true;
+  }
+  if (msg.type === 'GET_LOCAL_JD') {
+    chrome.storage.local.get(['parsedJD'], (data) => {
+      sendResponse({ parsedJD: data.parsedJD || '' });
     });
     return true;
   }
@@ -269,38 +276,47 @@ ${fullText.substring(0, 15000)}`;
 
 async function handleMatchFields(fields) {
   const { profile, resumeText } = await getProfileData();
+  const storageData = await chrome.storage.local.get(['parsedJD']);
+  const parsedJD = storageData.parsedJD || '';
   const matched = {};
   const toLLM = [];
+  
+  chrome.runtime.sendMessage({ type: 'AUTOFILL_PROGRESS', percent: 30, text: 'Resolving rule-based fields...' }).catch(() => {});
   
   for (const f of fields) {
     let ruleMatched = false;
     const textToMatch = `${f.label} ${f.name} ${f.placeholder}`.toLowerCase();
-    for (const rule of RULES) {
-      if (rule.regex.test(textToMatch)) {
-        // Resolve dot notation for nested fields (e.g. education.0.schoolName)
-        const keys = rule.field.split('.');
-        let val = profile;
-        for (const k of keys) {
-          if (val !== undefined && val !== null) {
-            val = val[k];
-          } else {
-            val = undefined;
+    
+    if (f.type !== 'checkbox' && f.type !== 'radio') {
+      for (const rule of RULES) {
+        if (rule.regex.test(textToMatch)) {
+          // Resolve dot notation for nested fields (e.g. education.0.schoolName)
+          const keys = rule.field.split('.');
+          let val = profile;
+          for (const k of keys) {
+            if (val !== undefined && val !== null) {
+              val = val[k];
+            } else {
+              val = undefined;
+              break;
+            }
+          }
+          if (val) {
+            matched[f.id] = val;
+            ruleMatched = true;
             break;
           }
         }
-        if (val) {
-          matched[f.id] = val;
-          ruleMatched = true;
-          break;
-        }
       }
     }
+    
     if (!ruleMatched) {
       toLLM.push(f);
     }
   }
   
   if (toLLM.length > 0) {
+    chrome.runtime.sendMessage({ type: 'AUTOFILL_PROGRESS', percent: 45, text: 'Connecting with AI model...' }).catch(() => {});
     // Chunk to max 60 fields
     const chunks = [];
     for (let i = 0; i < toLLM.length; i += 60) {
@@ -308,15 +324,18 @@ async function handleMatchFields(fields) {
     }
     
     let lastError = null;
-    for (const chunk of chunks) {
+    for (let idx = 0; idx < chunks.length; idx++) {
+      const chunk = chunks[idx];
+      const progressPercent = 45 + Math.round((idx / chunks.length) * 30);
+      chrome.runtime.sendMessage({ type: 'AUTOFILL_PROGRESS', percent: progressPercent, text: `AI matching fields (chunk ${idx + 1}/${chunks.length})...` }).catch(() => {});
       const prompt = `You are an AI assistant helping to autofill a job application.
-Map the following form fields to the correct values based on the user's profile and resume.
+Map the following form fields to the correct values based on the user's profile, resume, and the job description details.
 
 CRITICAL INSTRUCTIONS:
 1. Return ONLY a valid JSON object.
 2. The JSON keys MUST be the exact "id" of the fields provided.
 3. The JSON values MUST be an object containing "label" (the field label) and "value" (the string value to fill).
-4. If you do not know the answer or it is not in the profile/resume, DO NOT include that field's id in the JSON.
+4. If you do not know the answer or it is not in the profile/resume/job description, DO NOT include that field's id in the JSON.
 5. Do not guess. Do not shift values.
 6. For EEO questions (race, gender, veteran, disability), answer "Prefer not to answer" unless explicitly stated.
 7. NEVER put a URL (like a website or portfolio link) into a field unless the field explicitly asks for a URL, website, or link.
@@ -324,6 +343,9 @@ CRITICAL INSTRUCTIONS:
 9. Prioritize the "label" over the "name" attribute when determining what a field is asking for.
 10. If the field asks for "hometown", "city", "town", or "location", ONLY use the city or address from the profile.
 11. If the field asks for "college", "university", "institute", or "school", ONLY use the collegeName from the education section.
+12. Use the Job Description details (if provided) to write tailored answers for custom questions like "Why do you want to join [Company]?" or "Describe your experience...".
+13. If a custom question (like "Why do you want to join..." or "Describe your experience...") is asked, and the user's profile lacks detailed information, draft a professional response highlighting the candidate's general software engineering capabilities, interest in the role requirements, and alignment with the job description. Do not leave custom textareas blank if they are required or ask for reasons.
+14. For checkbox (type: "checkbox") and radio button (type: "radio") fields: if the candidate's profile or resume details match the specific checkbox/radio option label, return "true" or "yes" for that field ID. If the candidate's profile or resume does not match the option, return "false" or omit the field ID.
 
 Example Output:
 {
@@ -336,6 +358,9 @@ Example Output:
     "value": "john.doe@example.com"
   }
 }
+
+Job Description:
+${parsedJD || "No job description details parsed."}
 
 User Profile:
 ${JSON.stringify(profile, null, 2)}

@@ -189,9 +189,30 @@ const COUNTRIES = [
   'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan', 'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Cabo Verde', 'Cambodia', 'Cameroon', 'Canada', 'Central African Republic', 'Chad', 'Chile', 'China', 'Colombia', 'Comoros', 'Congo', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czechia', 'Denmark', 'Djibouti', 'Dominica', 'Dominican Republic', 'Ecuador', 'Egypt', 'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 'Eswatini', 'Ethiopia', 'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia', 'Germany', 'Ghana', 'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti', 'Honduras', 'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kiribati', 'Korea, North', 'Korea, South', 'Kosovo', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 'Lebanon', 'Lesotho', 'Liberia', 'Libya', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Madagascar', 'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta', 'Marshall Islands', 'Mauritania', 'Mauritius', 'Mexico', 'Micronesia', 'Moldova', 'Monaco', 'Mongolia', 'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal', 'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'North Macedonia', 'Norway', 'Oman', 'Pakistan', 'Palau', 'Palestine', 'Panama', 'Papua New Guinea', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania', 'Russia', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent and the Grenadines', 'Samoa', 'San Marino', 'Sao Tome and Principe', 'Saudi Arabia', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone', 'Singapore', 'Slovakia', 'Slovenia', 'Solomon Islands', 'Somalia', 'South Africa', 'South Sudan', 'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Syria', 'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo', 'Tonga', 'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda', 'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay', 'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'
 ];
 
-export default function DashboardClient({ userId, email, initialProfile }: { userId: string, email: string, initialProfile: any }) {
+export default function DashboardClient({ userId, email, initialProfile, extensionId }: { userId: string, email: string, initialProfile: any, extensionId?: string }) {
   const supabase = createClient()
   const router = useRouter()
+  
+  const [localJD, setLocalJD] = useState<string>('')
+
+  useEffect(() => {
+    const extId = extensionId || process.env.NEXT_PUBLIC_EXTENSION_ID;
+    if (extId && typeof window !== 'undefined' && (window as any).chrome && (window as any).chrome.runtime) {
+      try {
+        (window as any).chrome.runtime.sendMessage(
+          extId,
+          { type: 'GET_LOCAL_JD' },
+          (response: any) => {
+            if (response && response.parsedJD) {
+              setLocalJD(response.parsedJD);
+            }
+          }
+        );
+      } catch (e) {
+        console.error('Failed to communicate with extension for local JD', e);
+      }
+    }
+  }, [extensionId]);
   
   const getInitialProfileObj = () => {
     const p = emptyProfile()
@@ -650,7 +671,7 @@ ${text.substring(0, 15000)}`
         <div className="flex items-center gap-6">
           <div className="hidden sm:flex items-center gap-2 text-sm font-bold text-black">
             <span>❤️ Enjoying the app?</span>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:text-[#0B7A2A] transition-colors">
+            <a href="https://github.com/sheelganvir/1click" target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:text-[#0B7A2A] transition-colors">
               ⭐ Star on GitHub
             </a>
           </div>
@@ -856,6 +877,22 @@ ${text.substring(0, 15000)}`
                 </div>
               </div>
             </div>
+
+            {/* Active Job Description Card */}
+            {localJD && (
+              <div className="bg-white rounded-3xl border border-light-accent p-6 shadow-[0_8px_30px_rgba(0,0,0,0.03)] relative z-10 lg:col-span-2">
+                <h3 className="text-sm font-extrabold text-primary flex items-center gap-2 mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  ACTIVE JOB DESCRIPTION (FROM EXTENSION)
+                </h3>
+                <p className="text-[10px] font-bold text-black/50 mb-4 leading-relaxed">
+                  Automatically synchronized from your extension&apos;s local storage. Not stored on servers.
+                </p>
+                <div className="text-xs font-semibold text-black/85 whitespace-pre-line leading-relaxed bg-[#f8fafc] border border-light-accent/50 p-4 rounded-xl max-h-60 overflow-y-auto custom-scrollbar">
+                  {localJD}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Form Sections */}

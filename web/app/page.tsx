@@ -57,7 +57,7 @@ export default async function Home({
         <div className="flex items-center gap-6">
           <div className="hidden sm:flex items-center gap-2 text-sm font-bold text-black">
             <span>❤️ Enjoying the app?</span>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:text-[#0B7A2A] transition-colors">
+            <a href="https://github.com/sheelganvir/1click" target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:text-[#0B7A2A] transition-colors">
               ⭐ Star on GitHub
             </a>
           </div>

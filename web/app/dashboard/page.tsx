@@ -24,6 +24,7 @@ export default async function Dashboard() {
       userId={user.id} 
       email={user.email!} 
       initialProfile={profile || {}} 
+      extensionId={process.env.NEXT_PUBLIC_EXTENSION_ID!}
     />
   )
 }
