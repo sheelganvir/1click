@@ -4,22 +4,33 @@
   box-sizing: border-box;
 }
 
+html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
 body {
-  width: 400px;
+  width: 100%;
+  min-width: 300px;
+  max-width: 100%;
+  height: 100%;
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: #111;
   background-color: #ffffff;
   overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Header Area */
 .header-area {
   position: relative;
   width: 100%;
-  height: 120px;
-  padding: 20px 24px;
+  height: 95px;
+  padding: 12px 20px;
   overflow: hidden;
   border-bottom: 1px solid #f3f4f6;
   background: #ffffff;
@@ -63,38 +74,38 @@ body {
 }
 
 .logo-img {
-  height: 48px;
+  height: 36px;
   width: auto;
   object-fit: contain;
 }
 
 .header-text h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 800;
   color: #111;
   letter-spacing: -0.02em;
 }
-
+ 
 .subtitle {
-  margin: 4px 0 0 0;
-  font-size: 0.75rem;
+  margin: 2px 0 0 0;
+  font-size: 0.7rem;
   font-weight: 500;
   color: #6b7280;
-  margin-left: 60px; /* Aligned roughly with text */
+  margin-left: 48px; /* Aligned roughly with text */
 }
-
+ 
 .detective-img {
-  height: 90px;
+  height: 70px;
   width: auto;
   object-fit: contain;
-  margin-right: -10px;
-  margin-bottom: -20px;
+  margin-right: -5px;
+  margin-bottom: -12px;
 }
 
 /* Common State View */
 .state-view {
-  padding: 24px;
+  padding: 16px 20px;
 }
 
 .hidden {
@@ -204,8 +215,8 @@ body {
   width: 100%;
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  border-radius: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
@@ -233,14 +244,14 @@ body {
 }
 
 .btn-icon {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-right: 16px;
+  margin-right: 12px;
 }
 
 .bg-light-green {
@@ -259,13 +270,13 @@ body {
 }
 
 .btn-title {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #111;
 }
-
+ 
 .btn-desc {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #6b7280;
   font-weight: 500;
 }
@@ -297,15 +308,15 @@ body {
 /* Footer Section */
 .user-footer {
   border-top: 1px solid #f3f4f6;
-  padding: 20px 24px;
+  padding: 12px 20px;
   background: #ffffff;
 }
-
+ 
 .user-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .user-info {
@@ -315,15 +326,15 @@ body {
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: #D2EDD0;
   color: #0B7A2A;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 800;
 }
 
@@ -354,9 +365,9 @@ body {
 }
 
 .guest-links {
-  padding: 0 24px 20px;
+  padding: 0 20px 12px;
   border-top: 1px solid #f3f4f6;
-  padding-top: 20px;
+  padding-top: 12px;
 }
 
 .nav-link {
@@ -378,7 +389,7 @@ body {
 .bottom-credit {
   background: #fcfcfc;
   border-top: 1px solid #f3f4f6;
-  padding: 16px 24px;
+  padding: 10px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;

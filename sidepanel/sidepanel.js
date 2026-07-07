@@ -118,3 +118,9 @@ function checkState() {
     }
   });
 }
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'local' && (changes.session || changes.provider || changes.geminiKey || changes.groqKey)) {
+    checkState();
+  }
+});

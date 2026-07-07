@@ -1,5 +1,9 @@
 importScripts('../config.js');
 const CONFIG = self.JOB_AUTOFILL_CONFIG;
+ 
+if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
+}
 
 const PROVIDERS = {
   gemini: {
@@ -91,6 +95,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg.type === 'PARSE_JD_TAB') {
     parseJdTab(msg.tabId).then(res => sendResponse(res)).catch(e => sendResponse({ error: e.message }));
+    return true;
+  }
+  if (msg.type === 'PARSE_JD_CURRENT') {
+    const tabId = sender.tab ? sender.tab.id : null;
+    if (tabId) {
+      parseJdTab(tabId).then(res => sendResponse(res)).catch(e => sendResponse({ error: e.message }));
+    } else {
+      sendResponse({ error: 'No active tab found' });
+    }
+    return true;
+  }
+  if (msg.type === 'OPEN_OPTIONS') {
+    chrome.runtime.openOptionsPage();
+    sendResponse({ ok: true });
+    return true;
+  }
+  if (msg.type === 'OPEN_DASHBOARD') {
+    chrome.tabs.create({ url: `${CONFIG.WEB_APP_URL}/dashboard` });
+    sendResponse({ ok: true });
     return true;
   }
   if (msg.type === 'MATCH_FIELDS') {
@@ -448,7 +471,7 @@ CRITICAL INSTRUCTIONS:
 
 JSON Structure:
 {
-  "firstName": "", "lastName": "", "email": "", "phone": "",
+  "firstName": "", "middleName": "", "lastName": "", "email": "", "phone": "",
   "address": "", "city": "", "state": "", "country": "", "zip": "",
   "linkedin": "", "github": "", "website": "", "x": "", "medium": "", "leetcode": "", "gfg": "",
   "education": [

@@ -131,6 +131,60 @@ function getProfileCompletion(profile: UserProfile) {
   return { percent, remaining, remainingPerSection }
 }
 
+function formatName(name: string | undefined | null): string {
+  if (!name) return '';
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+  return trimmed.split(/\s+/).map(part => {
+    if (!part) return '';
+    return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+function splitAndFormatName(parsedFirst: string | undefined | null, parsedMiddle: string | undefined | null, parsedLast: string | undefined | null) {
+  const allParts = [parsedFirst, parsedMiddle, parsedLast]
+    .filter(Boolean)
+    .map(n => n!.trim())
+    .join(' ')
+    .split(/\s+/);
+  
+  let firstName = '';
+  let middleName = '';
+  let lastName = '';
+  
+  if (allParts.length === 1) {
+    firstName = formatName(allParts[0]);
+  } else if (allParts.length === 2) {
+    firstName = formatName(allParts[0]);
+    lastName = formatName(allParts[1]);
+  } else if (allParts.length === 3) {
+    firstName = formatName(allParts[0]);
+    middleName = formatName(allParts[1]);
+    lastName = formatName(allParts[2]);
+  } else if (allParts.length > 3) {
+    firstName = formatName(allParts[0]);
+    middleName = allParts.slice(1, -1).map(formatName).join(' ');
+    lastName = formatName(allParts[allParts.length - 1]);
+  }
+  
+  return { firstName, middleName, lastName };
+}
+
+function parsePhoneAndCountryCode(rawPhone: string | undefined | null) {
+  if (!rawPhone) return { phone: '', countryCode: '' };
+  const clean = rawPhone.replace(/[\s\-()]/g, '');
+  if (clean.length > 10) {
+    return {
+      phone: clean.slice(-10),
+      countryCode: clean.slice(0, -10)
+    };
+  }
+  return {
+    phone: clean,
+    countryCode: ''
+  };
+}
+
 const COUNTRIES = [
   'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan', 'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Cabo Verde', 'Cambodia', 'Cameroon', 'Canada', 'Central African Republic', 'Chad', 'Chile', 'China', 'Colombia', 'Comoros', 'Congo', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czechia', 'Denmark', 'Djibouti', 'Dominica', 'Dominican Republic', 'Ecuador', 'Egypt', 'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 'Eswatini', 'Ethiopia', 'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia', 'Germany', 'Ghana', 'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti', 'Honduras', 'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kiribati', 'Korea, North', 'Korea, South', 'Kosovo', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 'Lebanon', 'Lesotho', 'Liberia', 'Libya', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Madagascar', 'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta', 'Marshall Islands', 'Mauritania', 'Mauritius', 'Mexico', 'Micronesia', 'Moldova', 'Monaco', 'Mongolia', 'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal', 'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'North Macedonia', 'Norway', 'Oman', 'Pakistan', 'Palau', 'Palestine', 'Panama', 'Papua New Guinea', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania', 'Russia', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent and the Grenadines', 'Samoa', 'San Marino', 'Sao Tome and Principe', 'Saudi Arabia', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone', 'Singapore', 'Slovakia', 'Slovenia', 'Solomon Islands', 'Somalia', 'South Africa', 'South Sudan', 'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Syria', 'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo', 'Tonga', 'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda', 'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay', 'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'
 ];
@@ -342,7 +396,7 @@ CRITICAL INSTRUCTIONS:
 
 JSON Structure:
 {
-  "firstName": "", "lastName": "", "email": "", "phone": "",
+  "firstName": "", "middleName": "", "lastName": "", "email": "", "phone": "",
   "address": "", "city": "", "state": "", "country": "", "zip": "", "dateOfBirth": "",
   "linkedin": "", "github": "", "website": "", "x": "", "medium": "", "leetcode": "", "gfg": "",
   "education": [
@@ -382,32 +436,38 @@ ${text.substring(0, 15000)}`
           }
           
           const p = JSON.parse(parsedText.trim());
-            setProfile(prev => ({
-              ...prev,
-              firstName: p.firstName || prev.firstName,
-              lastName: p.lastName || prev.lastName,
-              email: p.email || prev.email,
-              phone: p.phone || prev.phone,
-              address: p.address || prev.address,
-              city: p.city || prev.city,
-              state: p.state || prev.state,
-              country: p.country || prev.country,
-              zip: p.zip || prev.zip,
-              dateOfBirth: p.dateOfBirth || prev.dateOfBirth,
-              linkedin: p.linkedin || prev.linkedin,
-              github: p.github || prev.github,
-              website: p.website || prev.website,
-              x: p.x || prev.x,
-              medium: p.medium || prev.medium,
-              leetcode: p.leetcode || prev.leetcode,
-              gfg: p.gfg || prev.gfg,
-              education: p.education && p.education.length > 0 ? p.education : prev.education,
-              workExperience: p.workExperience && p.workExperience.length > 0 ? p.workExperience : prev.workExperience,
-              skills: p.skills && p.skills.length > 0 ? p.skills : prev.skills,
-              languages: p.languages && p.languages.length > 0 ? p.languages : prev.languages,
-              certificates: p.certificates && p.certificates.length > 0 ? p.certificates : prev.certificates,
-              achievements: p.achievements || prev.achievements
-            }));
+          const phoneParsed = p.phone ? parsePhoneAndCountryCode(p.phone) : { phone: '', countryCode: '' };
+          const nameInfo = (p.firstName || p.middleName || p.lastName)
+            ? splitAndFormatName(p.firstName, p.middleName, p.lastName)
+            : null;
+          setProfile(prev => ({
+            ...prev,
+            firstName: nameInfo ? (nameInfo.firstName || prev.firstName) : prev.firstName,
+            middleName: nameInfo ? nameInfo.middleName : prev.middleName,
+            lastName: nameInfo ? (nameInfo.lastName || prev.lastName) : prev.lastName,
+            email: p.email || prev.email,
+            phone: p.phone ? phoneParsed.phone : prev.phone,
+            countryCode: p.phone ? (phoneParsed.countryCode || prev.countryCode) : prev.countryCode,
+            address: p.address || prev.address,
+            city: p.city || prev.city,
+            state: p.state || prev.state,
+            country: p.country || prev.country,
+            zip: p.zip || prev.zip,
+            dateOfBirth: p.dateOfBirth || prev.dateOfBirth,
+            linkedin: p.linkedin || prev.linkedin,
+            github: p.github || prev.github,
+            website: p.website || prev.website,
+            x: p.x || prev.x,
+            medium: p.medium || prev.medium,
+            leetcode: p.leetcode || prev.leetcode,
+            gfg: p.gfg || prev.gfg,
+            education: p.education && p.education.length > 0 ? p.education : prev.education,
+            workExperience: p.workExperience && p.workExperience.length > 0 ? p.workExperience : prev.workExperience,
+            skills: p.skills && p.skills.length > 0 ? p.skills : prev.skills,
+            languages: p.languages && p.languages.length > 0 ? p.languages : prev.languages,
+            certificates: p.certificates && p.certificates.length > 0 ? p.certificates : prev.certificates,
+            achievements: p.achievements || prev.achievements
+          }));
           setMsg('Profile autofilled from resume!');
           setParsingResume(false);
           return;
@@ -430,12 +490,18 @@ ${text.substring(0, 15000)}`
           }
           if (response && response.ok && response.profile) {
             const p = response.profile;
+            const phoneParsed = p.phone ? parsePhoneAndCountryCode(p.phone) : { phone: '', countryCode: '' };
+            const nameInfo = (p.firstName || p.middleName || p.lastName)
+              ? splitAndFormatName(p.firstName, p.middleName, p.lastName)
+              : null;
             setProfile(prev => ({
               ...prev,
-              firstName: p.firstName || prev.firstName,
-              lastName: p.lastName || prev.lastName,
+              firstName: nameInfo ? (nameInfo.firstName || prev.firstName) : prev.firstName,
+              middleName: nameInfo ? nameInfo.middleName : prev.middleName,
+              lastName: nameInfo ? (nameInfo.lastName || prev.lastName) : prev.lastName,
               email: p.email || prev.email,
-              phone: p.phone || prev.phone,
+              phone: p.phone ? phoneParsed.phone : prev.phone,
+              countryCode: p.phone ? (phoneParsed.countryCode || prev.countryCode) : prev.countryCode,
               address: p.address || prev.address,
               city: p.city || prev.city,
               state: p.state || prev.state,

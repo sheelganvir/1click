@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
@@ -8,7 +8,7 @@ export default function ConnectClient({ email, extensionId }: { email: string, e
   const [status, setStatus] = useState<'connecting' | 'done' | 'error' | 'no-extension'>('connecting')
   const [errMsg, setErrMsg] = useState('')
 
-  const attemptConnect = async () => {
+  const attemptConnect = useCallback(async () => {
     setStatus('connecting')
     setErrMsg('')
     
@@ -48,15 +48,18 @@ export default function ConnectClient({ email, extensionId }: { email: string, e
           setErrMsg('Extension rejected the connection.')
         }
       })
-    } catch (e: any) {
+    } catch (e: unknown) {
       setStatus('error')
-      setErrMsg(e.message)
+      setErrMsg(e instanceof Error ? e.message : String(e))
     }
-  }
+  }, [email, extensionId])
 
   useEffect(() => {
-    attemptConnect()
-  }, [])
+    const timer = setTimeout(() => {
+      attemptConnect()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [attemptConnect])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden font-sans">
@@ -65,8 +68,8 @@ export default function ConnectClient({ email, extensionId }: { email: string, e
 
       <div className="max-w-md w-full bg-cards/80 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-light-accent relative z-10 text-center space-y-8">
         <div className="flex flex-col items-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-b from-[#0B7A2A] to-primary shadow-[0_0_20px_var(--glow)] border border-accent/20 mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white h-8 w-8"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-b from-[#0B7A2A] to-primary shadow-[0_0_20px_var(--glow)] border border-accent/20 mb-6 overflow-hidden">
+            <img src="/1click_logo.png" alt="1Click Logo" className="h-12 w-12 object-contain" />
           </div>
           <h2 className="text-3xl font-extrabold text-foreground">Connect Extension</h2>
         </div>
