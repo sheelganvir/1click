@@ -190,31 +190,166 @@ function fillFields(matched, root) {
   chrome.runtime.sendMessage({ type: 'AUTOFILL_PROGRESS', percent: 100, text: 'Form filled successfully!' });
 }
 
+function formatForMonthInput(val) {
+  if (!val) return '';
+  const str = val.toString().trim();
+  if (/^\d{4}-\d{2}$/.test(str)) {
+    return str;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    return str.substring(0, 7);
+  }
+  
+  let year = null;
+  let month = '01';
+  
+  const yearMatch = str.match(/\b\d{4}\b/);
+  if (yearMatch) {
+    year = yearMatch[0];
+  }
+  
+  const monthsMap = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+    january: '01', february: '02', march: '03', april: '04', june: '06',
+    july: '07', august: '08', september: '09', october: '10', november: '11', december: '12'
+  };
+  
+  const words = str.toLowerCase().split(/[\s,.\-\/]+/);
+  for (const word of words) {
+    if (monthsMap[word]) {
+      month = monthsMap[word];
+      break;
+    }
+    if (/^\d{1,2}$/.test(word)) {
+      const num = parseInt(word, 10);
+      if (num >= 1 && num <= 12 && word !== year) {
+        month = num.toString().padStart(2, '0');
+      }
+    }
+  }
+  
+  if (!year) {
+    const parts = str.split(/[\s\-\/]+/);
+    if (parts.length === 2) {
+      const p0 = parts[0];
+      const p1 = parts[1];
+      if (/^\d{4}$/.test(p1)) {
+        year = p1;
+        month = p0.padStart(2, '0');
+      } else if (/^\d{4}$/.test(p0)) {
+        year = p0;
+        month = p1.padStart(2, '0');
+      } else if (/^\d{2}$/.test(p1)) {
+        year = '20' + p1;
+        month = p0.padStart(2, '0');
+      }
+    }
+  }
+  
+  if (!year) {
+    year = new Date().getFullYear().toString();
+  }
+  
+  return `${year}-${month}`;
+}
+
+function formatForDateInput(val) {
+  if (!val) return '';
+  const str = val.toString().trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    return str;
+  }
+  if (/^\d{4}-\d{2}$/.test(str)) {
+    return `${str}-01`;
+  }
+  const monthStr = formatForMonthInput(str);
+  return `${monthStr}-01`;
+}
+
+function formatForWeekInput(val) {
+  if (!val) return '';
+  const str = val.toString().trim();
+  if (/^\d{4}-W\d{2}$/i.test(str)) {
+    return str.toUpperCase();
+  }
+  
+  let year = new Date().getFullYear();
+  let week = 1;
+  
+  const parsedDate = Date.parse(str);
+  if (!isNaN(parsedDate)) {
+    const dateObj = new Date(parsedDate);
+    year = dateObj.getFullYear();
+    dateObj.setHours(0, 0, 0, 0);
+    dateObj.setDate(dateObj.getDate() + 4 - (dateObj.getDay() || 7));
+    const yearStart = new Date(dateObj.getFullYear(), 0, 1);
+    const weekNo = Math.ceil((((dateObj.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    week = weekNo;
+  } else {
+    const numMatch = str.match(/\b\d{1,2}\b/);
+    if (numMatch) {
+      week = parseInt(numMatch[0], 10);
+      if (week < 1) week = 1;
+      if (week > 53) week = 53;
+    }
+    const yearMatch = str.match(/\b\d{4}\b/);
+    if (yearMatch) {
+      year = parseInt(yearMatch[0], 10);
+    }
+  }
+  
+  return `${year}-W${week.toString().padStart(2, '0')}`;
+}
+
+function formatForTimeInput(val) {
+  if (!val) return '';
+  const str = val.toString().trim();
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(str)) {
+    return str;
+  }
+  const timeMatch = str.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (timeMatch) {
+    let hours = parseInt(timeMatch[1], 10);
+    const minutes = timeMatch[2];
+    const ampm = timeMatch[3];
+    if (ampm) {
+      if (ampm.toLowerCase() === 'pm' && hours < 12) hours += 12;
+      if (ampm.toLowerCase() === 'am' && hours === 12) hours = 0;
+    }
+    return `${hours.toString().padStart(2, '0')}:${minutes}`;
+  }
+  return str;
+}
+
 function injectValue(el, value) {
+  if (value === undefined || value === null) return;
+  const valStr = value.toString();
+
   if (el.tagName === 'SELECT') {
     const options = Array.from(el.options);
-    const target = options.find(o => o.text.toLowerCase().includes(value.toLowerCase()) || o.value.toLowerCase() === value.toLowerCase());
+    const target = options.find(o => o.text.toLowerCase().includes(valStr.toLowerCase()) || o.value.toLowerCase() === valStr.toLowerCase());
     if (target) {
       el.value = target.value;
       el.dispatchEvent(new Event('change', { bubbles: true }));
       debugLog(`[Select] Set to option: "${target.text}"`);
     } else {
-      debugLog(`[Select] Could not find option matching: "${value}"`);
+      debugLog(`[Select] Could not find option matching: "${valStr}"`);
     }
   } else if (el.type === 'checkbox' || el.type === 'radio') {
-    const valStr = value.toString().toLowerCase();
+    const valLower = valStr.toLowerCase();
     const elVal = el.value.toLowerCase();
     const baseLabel = getLabel(el).split(' - ').pop().toLowerCase();
     
     const isMatched = (
-      valStr === 'true' || 
-      valStr === 'yes' || 
-      elVal === valStr ||
-      baseLabel.includes(valStr) ||
-      valStr.includes(baseLabel)
+      valLower === 'true' || 
+      valLower === 'yes' || 
+      elVal === valLower ||
+      baseLabel.includes(valLower) ||
+      valLower.includes(baseLabel)
     );
     
-    debugLog(`[Choice] Type: ${el.type}, valStr: "${valStr}", elVal: "${elVal}", baseLabel: "${baseLabel}", isMatched: ${isMatched}`);
+    debugLog(`[Choice] Type: ${el.type}, valLower: "${valLower}", elVal: "${elVal}", baseLabel: "${baseLabel}", isMatched: ${isMatched}`);
     
     if (isMatched && !el.checked) {
       el.click();
@@ -224,24 +359,35 @@ function injectValue(el, value) {
       debugLog(`[Choice] Clicked to UNCHECK.`);
     }
   } else if (el.isContentEditable) {
-    el.innerText = value;
+    el.innerText = valStr;
     el.dispatchEvent(new Event('input', { bubbles: true }));
     debugLog(`[ContentEditable] Filled value.`);
   } else {
+    let finalValue = valStr;
+    if (el.type === 'month') {
+      finalValue = formatForMonthInput(valStr);
+    } else if (el.type === 'date') {
+      finalValue = formatForDateInput(valStr);
+    } else if (el.type === 'week') {
+      finalValue = formatForWeekInput(valStr);
+    } else if (el.type === 'time') {
+      finalValue = formatForTimeInput(valStr);
+    }
+    
     // React/Vue safe injection
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
     const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
     
     if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
-      nativeTextAreaValueSetter.call(el, value);
+      nativeTextAreaValueSetter.call(el, finalValue);
     } else if (nativeInputValueSetter) {
-      nativeInputValueSetter.call(el, value);
+      nativeInputValueSetter.call(el, finalValue);
     } else {
-      el.value = value;
+      el.value = finalValue;
     }
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
-    debugLog(`[Text/Input] Set value.`);
+    debugLog(`[Text/Input] Set value: "${finalValue}" (original: "${valStr}").`);
   }
 }
 
