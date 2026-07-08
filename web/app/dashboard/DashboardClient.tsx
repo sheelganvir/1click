@@ -240,11 +240,11 @@ export default function DashboardClient({ userId, email, initialProfile, extensi
     p.medium = initialProfile.medium || ''
     p.leetcode = initialProfile.leetcode || ''
     p.gfg = initialProfile.gfg || ''
-    p.education = initialProfile.education || []
-    p.workExperience = initialProfile.work_experience || []
-    p.skills = initialProfile.skills || []
-    p.languages = initialProfile.languages || []
-    p.certificates = initialProfile.certificates || []
+    p.education = initialProfile.education ? JSON.parse(JSON.stringify(initialProfile.education)) : []
+    p.workExperience = initialProfile.work_experience ? JSON.parse(JSON.stringify(initialProfile.work_experience)) : []
+    p.skills = initialProfile.skills ? [...initialProfile.skills] : []
+    p.languages = initialProfile.languages ? [...initialProfile.languages] : []
+    p.certificates = initialProfile.certificates ? [...initialProfile.certificates] : []
     p.workAuthIndia = initialProfile.work_auth_india || ''
     p.requireSponsorship = initialProfile.require_sponsorship || ''
     p.disability = initialProfile.disability || ''
@@ -963,18 +963,18 @@ ${text.substring(0, 15000)}`
           <div key={i} className="relative mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <button onClick={() => setProfile({...profile, education: profile.education.filter((_, idx) => idx !== i)})} className="absolute top-3 right-3 text-sm font-bold text-red-500 hover:text-red-700">Remove</button>
             <h3 className="font-bold mb-4 text-gray-900">Education {i + 1}</h3>
-            <div className="mb-4"><Input label="College Name" required value={edu.collegeName} onChange={(v: string) => { const e = [...profile.education]; e[i].collegeName = v; setProfile({...profile, education: e}) }} placeholder="e.g. Stanford University, IIT Bombay" /></div>
-            <div className="mb-4"><Input label="Branch/Specialization" value={edu.branch || ''} onChange={(v: string) => { const e = [...profile.education]; e[i].branch = v; setProfile({...profile, education: e}) }} placeholder="e.g. Computer Science, Mechanical Engineering" /></div>
+            <div className="mb-4"><Input label="College Name" required value={edu.collegeName} onChange={(v: string) => { const e = profile.education.map((item, idx) => idx === i ? { ...item, collegeName: v } : item); setProfile({...profile, education: e}) }} placeholder="e.g. Stanford University, IIT Bombay" /></div>
+            <div className="mb-4"><Input label="Branch/Specialization" value={edu.branch || ''} onChange={(v: string) => { const e = profile.education.map((item, idx) => idx === i ? { ...item, branch: v } : item); setProfile({...profile, education: e}) }} placeholder="e.g. Computer Science, Mechanical Engineering" /></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <Input label="Accreditation (Degree)" required value={edu.degree} onChange={(v: string) => { const e = [...profile.education]; e[i].degree = v; setProfile({...profile, education: e}) }} placeholder="e.g. B.S. Computer Science, B.Tech" />
-              <Input label="GPA" value={edu.gpa} onChange={(v: string) => { const e = [...profile.education]; e[i].gpa = v; setProfile({...profile, education: e}) }} placeholder="e.g. 3.8/4.0, 8.5/10" numericOnly />
+              <Input label="Accreditation (Degree)" required value={edu.degree} onChange={(v: string) => { const e = profile.education.map((item, idx) => idx === i ? { ...item, degree: v } : item); setProfile({...profile, education: e}) }} placeholder="e.g. B.S. Computer Science, B.Tech" />
+              <Input label="GPA" value={edu.gpa} onChange={(v: string) => { const e = profile.education.map((item, idx) => idx === i ? { ...item, gpa: v } : item); setProfile({...profile, education: e}) }} placeholder="e.g. 3.8/4.0, 8.5/10" numericOnly />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input label="Start Date" value={edu.startDate} onChange={(v: string) => { const e = [...profile.education]; e[i].startDate = v; setProfile({...profile, education: e}) }} placeholder="e.g. Aug 2018, 08/2018" />
+              <Input label="Start Date" value={edu.startDate} onChange={(v: string) => { const e = profile.education.map((item, idx) => idx === i ? { ...item, startDate: v } : item); setProfile({...profile, education: e}) }} placeholder="e.g. Aug 2018, 08/2018" />
               <div>
-                <Input label="End Date" value={edu.endDate} onChange={(v: string) => { const e = [...profile.education]; e[i].endDate = v; setProfile({...profile, education: e}) }} placeholder="e.g. May 2022, Present" />
+                <Input label="End Date" value={edu.endDate} onChange={(v: string) => { const e = profile.education.map((item, idx) => idx === i ? { ...item, endDate: v } : item); setProfile({...profile, education: e}) }} placeholder="e.g. May 2022, Present" />
                 <label className="flex items-center mt-2 text-sm font-medium text-black/70">
-                  <input type="checkbox" checked={edu.currentlyStudyHere} onChange={(e) => { const ed = [...profile.education]; ed[i].currentlyStudyHere = e.target.checked; setProfile({...profile, education: ed}) }} className="mr-2 rounded border-light-accent text-primary focus:ring-primary/20" />
+                  <input type="checkbox" checked={edu.currentlyStudyHere} onChange={(e) => { const ed = profile.education.map((item, idx) => idx === i ? { ...item, currentlyStudyHere: e.target.checked } : item); setProfile({...profile, education: ed}) }} className="mr-2 rounded border-light-accent text-primary focus:ring-primary/20" />
                   I currently study here
                 </label>
               </div>
@@ -989,32 +989,32 @@ ${text.substring(0, 15000)}`
           <div key={i} className="relative mb-6 rounded-2xl border border-light-accent bg-white/50 p-6 shadow-sm">
             <button onClick={() => setProfile({...profile, workExperience: profile.workExperience.filter((_, idx) => idx !== i)})} className="absolute top-4 right-4 text-sm font-extrabold text-red-500 hover:text-red-700 transition-colors">Remove</button>
             <h3 className="font-extrabold mb-4 text-black">Work Experience {i + 1}</h3>
-            <div className="mb-4"><Input label="Company" required value={work.company} onChange={(v: string) => { const w = [...profile.workExperience]; w[i].company = v; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Google, TCS" /></div>
-            <div className="mb-4"><Input label="Job Title" required value={work.jobTitle} onChange={(v: string) => { const w = [...profile.workExperience]; w[i].jobTitle = v; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Software Engineer" /></div>
-            <div className="mb-4"><Input label="Location" value={work.location} onChange={(v: string) => { const w = [...profile.workExperience]; w[i].location = v; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Remote, Bangalore" /></div>
+            <div className="mb-4"><Input label="Company" required value={work.company} onChange={(v: string) => { const w = profile.workExperience.map((item, idx) => idx === i ? { ...item, company: v } : item); setProfile({...profile, workExperience: w}) }} placeholder="e.g. Google, TCS" /></div>
+            <div className="mb-4"><Input label="Job Title" required value={work.jobTitle} onChange={(v: string) => { const w = profile.workExperience.map((item, idx) => idx === i ? { ...item, jobTitle: v } : item); setProfile({...profile, workExperience: w}) }} placeholder="e.g. Software Engineer" /></div>
+            <div className="mb-4"><Input label="Location" value={work.location} onChange={(v: string) => { const w = profile.workExperience.map((item, idx) => idx === i ? { ...item, location: v } : item); setProfile({...profile, workExperience: w}) }} placeholder="e.g. Remote, Bangalore" /></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <Input label="Start Date" value={work.startDate} onChange={(v: string) => { const w = [...profile.workExperience]; w[i].startDate = v; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Jun 2022" />
+              <Input label="Start Date" value={work.startDate} onChange={(v: string) => { const w = profile.workExperience.map((item, idx) => idx === i ? { ...item, startDate: v } : item); setProfile({...profile, workExperience: w}) }} placeholder="e.g. Jun 2022" />
               <div>
-                <Input label="End Date" value={work.endDate} onChange={(v: string) => { const w = [...profile.workExperience]; w[i].endDate = v; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Present" />
+                <Input label="End Date" value={work.endDate} onChange={(v: string) => { const w = profile.workExperience.map((item, idx) => idx === i ? { ...item, endDate: v } : item); setProfile({...profile, workExperience: w}) }} placeholder="e.g. Present" />
                 <label className="flex items-center mt-2 text-sm font-medium text-black/70">
-                  <input type="checkbox" checked={work.currentlyWorkHere} onChange={(e) => { const w = [...profile.workExperience]; w[i].currentlyWorkHere = e.target.checked; setProfile({...profile, workExperience: w}) }} className="mr-2 rounded border-light-accent text-primary focus:ring-primary/20" />
+                  <input type="checkbox" checked={work.currentlyWorkHere} onChange={(e) => { const w = profile.workExperience.map((item, idx) => idx === i ? { ...item, currentlyWorkHere: e.target.checked } : item); setProfile({...profile, workExperience: w}) }} className="mr-2 rounded border-light-accent text-primary focus:ring-primary/20" />
                   I currently work here
                 </label>
               </div>
             </div>
             <div className="mb-4">
               <label className="block text-[11px] font-extrabold uppercase tracking-widest text-black/70 mb-1.5">Experience Summary</label>
-              <textarea value={work.summary} onChange={(e) => { const w = [...profile.workExperience]; w[i].summary = e.target.value; setProfile({...profile, workExperience: w}) }} placeholder="Brief overview of your role..." className="w-full rounded-xl border border-light-accent bg-white px-4 py-3 text-sm font-medium text-black outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/20 hover:border-accent/50" rows={2}></textarea>
+              <textarea value={work.summary} onChange={(e) => { const w = profile.workExperience.map((item, idx) => idx === i ? { ...item, summary: e.target.value } : item); setProfile({...profile, workExperience: w}) }} placeholder="Brief overview of your role..." className="w-full rounded-xl border border-light-accent bg-white px-4 py-3 text-sm font-medium text-black outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/20 hover:border-accent/50" rows={2}></textarea>
             </div>
             <div>
               <label className="block text-[11px] font-extrabold uppercase tracking-widest text-black/70 mb-2">Job Description (Bullets)</label>
               {work.bullets.map((bullet, bIdx) => (
                 <div key={bIdx} className="flex gap-2 mb-2">
-                  <input type="text" value={bullet} onChange={(e) => { const w = [...profile.workExperience]; w[i].bullets[bIdx] = e.target.value; setProfile({...profile, workExperience: w}) }} placeholder="e.g. Developed scalable microservices using Node.js..." className="flex-1 rounded-xl border border-light-accent bg-white px-4 py-2 text-sm font-medium text-black outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/20 hover:border-accent/50" />
-                  <button onClick={() => { const w = [...profile.workExperience]; w[i].bullets = w[i].bullets.filter((_, idx) => idx !== bIdx); setProfile({...profile, workExperience: w}) }} className="px-3 text-black/40 hover:text-red-500 transition-colors">✕</button>
+                  <input type="text" value={bullet} onChange={(e) => { const w = profile.workExperience.map((item, idx) => idx === i ? { ...item, bullets: item.bullets.map((b, bI) => bI === bIdx ? e.target.value : b) } : item); setProfile({...profile, workExperience: w}) }} placeholder="e.g. Developed scalable microservices using Node.js..." className="flex-1 rounded-xl border border-light-accent bg-white px-4 py-2 text-sm font-medium text-black outline-none transition-all focus:border-accent focus:ring-4 focus:ring-accent/20 hover:border-accent/50" />
+                  <button onClick={() => { const w = profile.workExperience.map((item, idx) => idx === i ? { ...item, bullets: item.bullets.filter((_, idx) => idx !== bIdx) } : item); setProfile({...profile, workExperience: w}) }} className="px-3 text-black/40 hover:text-red-500 transition-colors">✕</button>
                 </div>
               ))}
-              <button onClick={() => { const w = [...profile.workExperience]; w[i].bullets.push(''); setProfile({...profile, workExperience: w}) }} className="px-4 py-2 mt-2 border border-light-accent rounded-xl text-xs font-extrabold text-primary bg-white hover:bg-light-accent/10 transition-colors shadow-sm">+ Add Bullet Point</button>
+              <button onClick={() => { const w = profile.workExperience.map((item, idx) => idx === i ? { ...item, bullets: [...item.bullets, ''] } : item); setProfile({...profile, workExperience: w}) }} className="px-4 py-2 mt-2 border border-light-accent rounded-xl text-xs font-extrabold text-primary bg-white hover:bg-light-accent/10 transition-colors shadow-sm">+ Add Bullet Point</button>
             </div>
           </div>
         ))}
