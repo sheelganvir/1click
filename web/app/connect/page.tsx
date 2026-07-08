@@ -7,7 +7,7 @@ export default async function Connect() {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/login?next=/connect')
+    redirect('/?login=true&next=/connect')
   }
 
   return (
