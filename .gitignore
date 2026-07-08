@@ -14,8 +14,6 @@ web/.env
 web/.env.*
 !web/.env.example
 
-# Extension config containing API keys (CRITICAL TO IGNORE)
-config.js
 
 # Vercel
 .vercel/
