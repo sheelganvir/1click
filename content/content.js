@@ -1,6 +1,4 @@
-// content.js
 let seenElements = new WeakSet();
-let autofillActive = false;
 
 function debugLog(msg) {
   console.log('[1Click Debug]', msg);
@@ -56,7 +54,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'EXTRACT_FIELDS') {
     debugLog("Manual autofill triggered. Resetting element cache.");
     seenElements = new WeakSet();
-    autofillActive = true;
     extractAndFill();
     sendResponse({ ok: true });
     return;
@@ -391,22 +388,3 @@ function injectValue(el, value) {
   }
 }
 
-// Observe for new fields (e.g. SPAs, multi-step forms)
-const observer = new MutationObserver((mutations) => {
-  if (!autofillActive) return;
-  
-  let hasNewNodes = false;
-  for (const m of mutations) {
-    if (m.addedNodes.length > 0) {
-      hasNewNodes = true;
-      break;
-    }
-  }
-  if (hasNewNodes) {
-    // Debounce extraction
-    clearTimeout(window.autofillDebounce);
-    window.autofillDebounce = setTimeout(() => extractAndFill(document), 1000);
-  }
-});
-
-observer.observe(document.body, { childList: true, subtree: true });

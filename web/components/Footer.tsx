@@ -222,7 +222,7 @@ export default function Footer() {
             
             <div className="flex flex-col items-start gap-1">
               <div className="text-[11px] font-extrabold text-black">
-                A Product by <span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span> Company
+                A Product by <span className="text-[#0B7A2A]">1</span><span className="text-black">Click</span>
               </div>
               <div className="text-[11px] font-extrabold text-black flex items-center gap-1.5">
                 Made by <span className="text-primary">Sheel Ganvir</span>
