@@ -87,6 +87,10 @@ function getLabel(el) {
   let baseLabel = '';
   if (el.getAttribute('aria-label')) {
     baseLabel = el.getAttribute('aria-label');
+  } else if (el.getAttribute('aria-labelledby')) {
+    const labelId = el.getAttribute('aria-labelledby');
+    const labelEl = document.getElementById(labelId);
+    if (labelEl) baseLabel = labelEl.innerText;
   } else if (el.id) {
     const labelEl = document.querySelector(`label[for="${el.id}"]`);
     if (labelEl) baseLabel = labelEl.innerText;
@@ -99,6 +103,13 @@ function getLabel(el) {
       const input = clone.querySelector('input, select, textarea');
       if (input) input.remove();
       baseLabel = clone.innerText.trim();
+    }
+  }
+  
+  if (!baseLabel) {
+    const autoId = el.getAttribute('data-automation-id');
+    if (autoId) {
+      baseLabel = autoId.split('_').pop();
     }
   }
   
@@ -130,6 +141,16 @@ async function extractAndFill(root = document) {
   
   inputs.forEach((el, i) => {
     if (seenElements.has(el)) return;
+    
+    const label = getLabel(el);
+    const name = el.name || '';
+    const placeholder = el.placeholder || '';
+    
+    // Ignore completely anonymous fields to prevent matching hallucinations
+    if (!label && !name && !placeholder) {
+      return;
+    }
+    
     seenElements.add(el);
     
     // Generate a temporary ID if none exists to map back
@@ -139,10 +160,10 @@ async function extractAndFill(root = document) {
     
     fields.push({
       id: el.dataset.autofillId,
-      name: el.name || '',
+      name: name,
       type: el.type || el.tagName.toLowerCase(),
-      placeholder: el.placeholder || '',
-      label: getLabel(el),
+      placeholder: placeholder,
+      label: label,
       options: getOptions(el)
     });
   });
@@ -240,7 +261,7 @@ async function fillFields(matched, profile, root) {
         for (let i = 0; i < profileLinks.length; i++) {
           const urlVal = profileLinks[i];
           try {
-            injectValue(currentInput, urlVal);
+            await injectValue(currentInput, urlVal);
             count++;
             
             if (i < profileLinks.length - 1) {
@@ -270,7 +291,7 @@ async function fillFields(matched, profile, root) {
     if (el) {
       try {
         debugLog(`Filling: [Label: "${getLabel(el)}"] ──> Value: "${value}"`);
-        injectValue(el, value);
+        await injectValue(el, value);
         count++;
       } catch (err) {
         debugLog(`Error filling field [Label: "${getLabel(el)}"]: ${err.message || err}`);
@@ -416,34 +437,281 @@ function formatForTimeInput(val) {
   return str;
 }
 
-function injectValue(el, value) {
+function findBestSelectOption(options, valStr) {
+  const cleanVal = valStr.toLowerCase().trim();
+  
+  // 1. Exact or include match first
+  let target = options.find(o => o.text.toLowerCase().includes(cleanVal) || o.value.toLowerCase() === cleanVal);
+  if (target) return target;
+  
+  // 2. Fuzzy match for common demographic answers
+  // Decline to state / Prefer not to say
+  if (
+    cleanVal.includes('decline') || 
+    cleanVal.includes('prefer not') || 
+    cleanVal.includes('do not wish') || 
+    cleanVal.includes('wish to answer') || 
+    cleanVal.includes('prefer')
+  ) {
+    target = options.find(o => {
+      const txt = o.text.toLowerCase();
+      return txt.includes('decline') || txt.includes('prefer not') || txt.includes('wish to answer') || txt.includes('do not wish') || txt.includes('disclose') || txt.includes('identify') || txt.includes('no answer');
+    });
+    if (target) return target;
+  }
+  
+  // Yes / True / Active
+  if (cleanVal === 'yes' || cleanVal === 'true' || cleanVal === 'y') {
+    target = options.find(o => {
+      const txt = o.text.toLowerCase();
+      return txt === 'yes' || txt.startsWith('yes') || txt === 'true' || txt === 'y';
+    });
+    if (target) return target;
+  }
+  
+  // No / False / Inactive
+  if (cleanVal === 'no' || cleanVal === 'false' || cleanVal === 'n') {
+    target = options.find(o => {
+      const txt = o.text.toLowerCase();
+      return txt === 'no' || txt.startsWith('no') || txt === 'false' || txt === 'n';
+    });
+    if (target) return target;
+  }
+
+  // Male
+  if (cleanVal === 'male' || cleanVal === 'm') {
+    target = options.find(o => o.text.toLowerCase() === 'male' || o.text.toLowerCase() === 'man');
+    if (target) return target;
+  }
+
+  // Female
+  if (cleanVal === 'female' || cleanVal === 'f') {
+    target = options.find(o => o.text.toLowerCase() === 'female' || o.text.toLowerCase() === 'woman');
+    if (target) return target;
+  }
+  
+  return null;
+}
+
+function matchOptionText(optTxt, valStr) {
+  const txt = optTxt.toLowerCase().trim();
+  const val = valStr.toLowerCase().trim();
+  
+  // Clean text and check exact boundary matches first
+  const escapedVal = val.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const regex = new RegExp('\\b' + escapedVal + '\\b', 'i');
+  if (regex.test(txt)) return true;
+  
+  // Fuzzy match for Decline / Prefer not to say
+  if (
+    val.includes('decline') || 
+    val.includes('prefer not') || 
+    val.includes('do not wish') || 
+    val.includes('wish to answer') || 
+    val.includes('prefer')
+  ) {
+    if (txt.includes('decline') || txt.includes('prefer not') || txt.includes('wish to answer') || txt.includes('do not wish') || txt.includes('don\'t wish') || txt.includes('disclose') || txt.includes('identify') || txt.includes('no answer') || txt.includes('want to answer') || txt.includes('not state') || txt.includes('not disclosure')) {
+      return true;
+    }
+  }
+  
+  // Fuzzy match for Yes / Active
+  if (val === 'yes' || val === 'true' || val === 'y') {
+    if (
+      txt === 'yes' || 
+      txt.startsWith('yes') || 
+      txt === 'true' || 
+      txt === 'y' ||
+      txt.includes('identify as') ||
+      txt.includes('protected veteran') ||
+      txt.includes('have a disability')
+    ) {
+      return true;
+    }
+  }
+  
+  // Fuzzy match for No / Inactive
+  if (val === 'no' || val === 'false' || val === 'n') {
+    if (
+      txt === 'no' || 
+      txt.startsWith('no') || 
+      txt.startsWith('i am not') || 
+      txt.includes('not a protected veteran') ||
+      txt.includes('do not have a disability') ||
+      txt === 'false' || 
+      txt === 'n'
+    ) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+async function injectValue(el, value) {
   if (value === undefined || value === null) return;
   const valStr = value.toString();
+  const valLower = valStr.toLowerCase().trim();
 
   if (el.tagName === 'SELECT') {
     const options = Array.from(el.options);
-    const target = options.find(o => o.text.toLowerCase().includes(valStr.toLowerCase()) || o.value.toLowerCase() === valStr.toLowerCase());
+    const target = findBestSelectOption(options, valStr);
     if (target) {
-      el.value = target.value;
+      const nativeSelectValueSetter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value")?.set;
+      if (nativeSelectValueSetter) {
+        nativeSelectValueSetter.call(el, target.value);
+      } else {
+        el.value = target.value;
+      }
       el.dispatchEvent(new Event('change', { bubbles: true }));
       debugLog(`[Select] Set to option: "${target.text}"`);
     } else {
       debugLog(`[Select] Could not find option matching: "${valStr}"`);
     }
-  } else if (el.type === 'checkbox' || el.type === 'radio') {
-    const valLower = valStr.toLowerCase();
+    return;
+  }
+
+  // Check for custom comboboxes or dropdown lists (like Workday, React-Select, Chosen)
+  const fieldContainer = el.closest('.field, .form-group, [class*="control"], [class*="wrapper"]') || el.parentElement;
+  const isCustomSelect = (
+    el.getAttribute('role') === 'combobox' ||
+    el.getAttribute('aria-haspopup') === 'listbox' ||
+    el.tagName === 'BUTTON' ||
+    el.readOnly ||
+    el.classList.contains('select') ||
+    el.classList.contains('dropdown') ||
+    (fieldContainer && (
+      fieldContainer.classList.contains('select') ||
+      fieldContainer.classList.contains('dropdown') ||
+      fieldContainer.querySelector('button[aria-haspopup="listbox"]') ||
+      fieldContainer.querySelector('button[role="combobox"]')
+    ))
+  );
+
+  if (isCustomSelect && el.type !== 'file' && el.type !== 'checkbox' && el.type !== 'radio') {
+    debugLog(`[Custom Select] Attempting custom selection simulation for: "${valStr}"`);
+    let trigger = el;
+    if (el.type === 'hidden' || el.style.opacity === '0' || el.readOnly) {
+      trigger = el.closest('button') || el.closest('[role="button"]') || el.parentElement || el;
+    }
+
+    try {
+      // 1. Click trigger to open listbox menu
+      trigger.click();
+      trigger.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      trigger.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      // 2. Poll and Wait for listbox options to render in DOM (Retry up to 8 times every 50ms)
+      const optionSelectors = [
+        '[data-automation-id="dropdownOption"]',
+        '[role="option"]',
+        'li',
+        '.react-select__option',
+        '[class*="option"]',
+        '[class*="menu"] div',
+        '[class*="listbox"] div',
+        'div[id*="option"]'
+      ];
+
+      let matchedOption = null;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        // Search for active visible dropdown overlay menu containers in body
+        const menuSelectors = [
+          '[role="listbox"]',
+          '[role="menu"]',
+          '[class*="select2-drop"]',
+          '[class*="chosen-drop"]',
+          '[class*="dropdown-menu"]',
+          '[class*="select-options"]',
+          'ul[class*="select"]',
+          'ul[class*="dropdown"]',
+          'ul[class*="menu"]',
+          'ul[class*="results"]',
+          '[class*="menu"]',
+          '[class*="popup"]',
+          '[class*="listbox"]'
+        ];
+        const possibleMenus = Array.from(document.querySelectorAll(menuSelectors.join(', ')));
+        const activeMenus = possibleMenus.filter(m => {
+          if (m.offsetParent === null || m.innerText.trim() === '') return false;
+          // Must contain option nodes to prevent matching unrelated lists (like header/footer ul)
+          return m.querySelector('[role="option"], li, [class*="option"]') !== null;
+        });
+        const searchRoot = activeMenus.length > 0 ? activeMenus[activeMenus.length - 1] : document;
+
+        for (const selector of optionSelectors) {
+          const elements = Array.from(searchRoot.querySelectorAll(selector));
+          const visibleOptions = elements.filter(opt => opt.offsetParent !== null || opt.innerText.trim() !== '');
+
+          matchedOption = visibleOptions.find(opt => {
+            const txt = opt.innerText.replace(/\s+/g, ' ').toLowerCase().trim();
+            if (valLower.startsWith('+')) {
+              const code = valLower.substring(1);
+              if (txt.includes(valLower) || txt.includes(`(${code})`) || txt.includes(` ${code}`)) {
+                return true;
+              }
+            }
+            return matchOptionText(txt, valLower);
+          });
+
+          if (matchedOption) break;
+        }
+        if (matchedOption) break;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      if (matchedOption) {
+        debugLog(`[Custom Select] Found matching option: "${matchedOption.innerText.trim()}". Clicking it.`);
+        
+        // Scroll the option into view to make it interactable before clicking
+        matchedOption.scrollIntoView({ block: 'center', inline: 'nearest' });
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Target inner-most text node to trigger React handlers bound directly to text nodes
+        const innerElement = Array.from(matchedOption.querySelectorAll('*')).find(child => 
+          child.childElementCount === 0 && 
+          child.innerText && 
+          matchOptionText(child.innerText.replace(/\s+/g, ' '), valLower)
+        ) || matchedOption;
+
+        innerElement.click();
+        innerElement.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        innerElement.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        innerElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+        if (innerElement !== matchedOption) {
+          matchedOption.click();
+          matchedOption.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+          matchedOption.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+          matchedOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        }
+        
+        // Add a 150ms delay to let the menu close and animate out before the next field is clicked
+        await new Promise(resolve => setTimeout(resolve, 150));
+        return;
+      } else {
+        debugLog(`[Custom Select] Option matching "${valStr}" not found in open dropdown menu. Closing...`);
+        document.body.click();
+      }
+    } catch (err) {
+      debugLog(`[Custom Select] Error during selection simulation: ${err.message}`);
+    }
+  }
+
+  if (el.type === 'checkbox' || el.type === 'radio') {
+    const valLowerChoice = valStr.toLowerCase();
     const elVal = el.value.toLowerCase();
     const baseLabel = getLabel(el).split(' - ').pop().toLowerCase();
     
     const isMatched = (
-      valLower === 'true' || 
-      valLower === 'yes' || 
-      elVal === valLower ||
-      baseLabel.includes(valLower) ||
-      valLower.includes(baseLabel)
+      valLowerChoice === 'true' || 
+      valLowerChoice === 'yes' || 
+      elVal === valLowerChoice ||
+      baseLabel.includes(valLowerChoice) ||
+      valLowerChoice.includes(baseLabel)
     );
     
-    debugLog(`[Choice] Type: ${el.type}, valLower: "${valLower}", elVal: "${elVal}", baseLabel: "${baseLabel}", isMatched: ${isMatched}`);
+    debugLog(`[Choice] Type: ${el.type}, valLower: "${valLowerChoice}", elVal: "${elVal}", baseLabel: "${baseLabel}", isMatched: ${isMatched}`);
     
     if (isMatched && !el.checked) {
       el.click();
@@ -482,15 +750,18 @@ function injectValue(el, value) {
       finalValue = formatForTimeInput(valStr);
     }
     
+    if (isCustomSelect) {
+      debugLog(`[Custom Select] Option matching "${valStr}" not found. Skipping fallback to prevent input state corruption.`);
+      return;
+    }
+
     // React/Vue safe injection
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
     const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
     
     if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
-      el.value = finalValue;
       nativeTextAreaValueSetter.call(el, finalValue);
     } else if (nativeInputValueSetter) {
-      el.value = finalValue;
       nativeInputValueSetter.call(el, finalValue);
     } else {
       el.value = finalValue;

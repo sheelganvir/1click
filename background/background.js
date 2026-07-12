@@ -50,6 +50,7 @@ const RULES = [
   { regex: /\blast.*name\b/i, field: 'lastName' },
   { regex: /^(name|full name)$/i, field: 'firstName' }, // fallback
   { regex: /\bemail\b/i, field: 'email' },
+  { regex: /\b(country.*code|phone.*code|dialing.*code|dial.*code|^code$)\b/i, field: 'countryCode' },
   { regex: /\b(phone|mobile)\b/i, field: 'phone' },
   { regex: /\b(dob|birth|date of birth)\b/i, field: 'dateOfBirth' },
 
@@ -64,6 +65,14 @@ const RULES = [
   { regex: /\b(zip|postal|pincode)\b/i, field: 'zip' },
   { regex: /\bcountry\b/i, field: 'country' },
   { regex: /\b(nationality|citizenship)\b/i, field: 'nationality' },
+  
+  // EEO / Demographic Info
+  { regex: /\bdisability\b/i, field: 'disability' },
+  { regex: /\b(veteran|military)\b/i, field: 'veteran' },
+  { regex: /\bgender\b/i, field: 'gender' },
+  { regex: /\b(hispanic|latino)\b/i, field: 'hispanicLatino' },
+  { regex: /\brace\b/i, field: 'race' },
+  { regex: /\borientation\b/i, field: 'sexualOrientation' },
   
   // Work Auth
   { regex: /\b(authorized.*india|work.*india|right to work.*india)\b/i, field: 'workAuthIndia' },
