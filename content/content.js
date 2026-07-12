@@ -360,6 +360,20 @@ function injectValue(el, value) {
     el.dispatchEvent(new Event('input', { bubbles: true }));
     debugLog(`[ContentEditable] Filled value.`);
   } else {
+    if (el.type === 'file') {
+      try {
+        const filename = valStr.split(/[\\/]/).pop() || 'resume.pdf';
+        const dt = new DataTransfer();
+        dt.items.add(new File(["Mock file content for testing autofill"], filename, { type: "application/pdf" }));
+        el.files = dt.files;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        debugLog(`[File] Injected mock file: "${filename}"`);
+        return;
+      } catch (err) {
+        debugLog(`[File] Failed to inject mock file: ${err.message}`);
+      }
+    }
+
     let finalValue = valStr;
     if (el.type === 'month') {
       finalValue = formatForMonthInput(valStr);

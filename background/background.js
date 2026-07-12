@@ -30,7 +30,9 @@ const RULES = [
   { regex: /\b(branch|specialization|major)\b/i, field: 'education.0.branch' },
   { regex: /\bgpa\b/i, field: 'education.0.gpa' },
   { regex: /\b(company|employer)\b/i, field: 'workExperience.0.company' },
+  { regex: /\b(role description|job description|work summary|experience summary|job summary|past job description)\b/i, field: 'workExperience.0.summary' },
   { regex: /\b(job title|role)\b/i, field: 'workExperience.0.jobTitle' },
+  { regex: /\b(job location|work location|previous job location|past job location|employer location|company location)\b/i, field: 'workExperience.0.location' },
   { regex: /\b(graduation|grad.*date|grad.*year|end.*date)\b/i, field: 'education.0.endDate' },
 
   // Links
@@ -56,7 +58,7 @@ const RULES = [
 
   // Address (Generic, put last so they don't override specific ones like "Company City")
   { regex: /\baddress\b/i, field: 'address' },
-  { regex: /\b(city|town|hometown|location)\b/i, field: 'city' },
+  { regex: /\b(city|town|hometown)\b/i, field: 'city' },
   { regex: /\bstate\b/i, field: 'state' },
   { regex: /\b(zip|postal|pincode)\b/i, field: 'zip' },
   { regex: /\bcountry\b/i, field: 'country' },
