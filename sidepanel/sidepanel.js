@@ -204,7 +204,7 @@ function getInitials(email) {
 
 function loadSettings() {
   chrome.storage.local.get(['provider', 'geminiKey', 'groqKey'], (data) => {
-    const provider = data.provider || 'gemini';
+    const provider = data.provider || 'groq';
     const geminiKey = data.geminiKey || '';
     const groqKey = data.groqKey || '';
     

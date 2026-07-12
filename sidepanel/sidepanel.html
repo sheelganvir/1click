@@ -64,19 +64,25 @@
         <div class="settings-field">
           <label for="provider-select-nokey">AI Provider</label>
           <select id="provider-select-nokey">
-            <option value="gemini">Gemini (Default)</option>
-            <option value="groq">Groq</option>
+            <option value="groq" selected>Groq (Default)</option>
+            <option value="gemini">Gemini</option>
           </select>
         </div>
         
         <div id="gemini-key-group-nokey" class="settings-field">
           <label for="gemini-key-input-nokey">Gemini API Key</label>
           <input type="password" id="gemini-key-input-nokey" placeholder="Gemini Key...">
+          <div class="key-link-container">
+            <a href="https://aistudio.google.com/api-keys" target="_blank" class="key-link">Get your key from here</a>
+          </div>
         </div>
 
         <div id="groq-key-group-nokey" class="settings-field hidden">
           <label for="groq-key-input-nokey">Groq API Key</label>
           <input type="password" id="groq-key-input-nokey" placeholder="Groq Key...">
+          <div class="key-link-container">
+            <a href="https://console.groq.com/keys" target="_blank" class="key-link">Get your key from here</a>
+          </div>
         </div>
         
         <button id="btn-save-keys-nokey" class="primary-btn mt-2" style="padding: 10px 14px; font-size: 0.9rem;">
@@ -127,19 +133,25 @@
         <div class="settings-field">
           <label for="provider-select">AI Provider</label>
           <select id="provider-select">
-            <option value="gemini">Gemini (Default)</option>
-            <option value="groq">Groq</option>
+            <option value="groq" selected>Groq (Default)</option>
+            <option value="gemini">Gemini</option>
           </select>
         </div>
         
         <div id="gemini-key-group" class="settings-field">
           <label for="gemini-key-input">Gemini API Key</label>
           <input type="password" id="gemini-key-input" placeholder="Gemini Key...">
+          <div class="key-link-container">
+            <a href="https://aistudio.google.com/api-keys" target="_blank" class="key-link">Get your key from here</a>
+          </div>
         </div>
 
         <div id="groq-key-group" class="settings-field hidden">
           <label for="groq-key-input">Groq API Key</label>
           <input type="password" id="groq-key-input" placeholder="Groq Key...">
+          <div class="key-link-container">
+            <a href="https://console.groq.com/keys" target="_blank" class="key-link">Get your key from here</a>
+          </div>
         </div>
         
         <button id="btn-save-keys" class="primary-btn mt-2" style="padding: 10px 14px; font-size: 0.9rem;">

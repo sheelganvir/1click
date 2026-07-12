@@ -499,3 +499,19 @@ body {
 .settings-field input:focus {
   border-color: #0B7A2A;
 }
+
+.key-link-container {
+  margin-top: 2px;
+}
+
+.key-link {
+  font-size: 0.72rem;
+  color: #0b7a2a;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.key-link:hover {
+  color: #05501a;
+}

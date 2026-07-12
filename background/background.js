@@ -82,12 +82,13 @@ const RULES = [
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GET_AUTH_STATE') {
     chrome.storage.local.get(['session', 'provider', 'geminiKey', 'groqKey'], (data) => {
-      const hasKey = data.provider === 'groq' ? !!data.groqKey : !!data.geminiKey;
+      const provider = data.provider || 'groq';
+      const hasKey = provider === 'groq' ? !!data.groqKey : !!data.geminiKey;
       sendResponse({
         signedIn: !!data.session,
         email: data.session?.email,
         hasKey: hasKey,
-        provider: data.provider || 'gemini'
+        provider: provider
       });
     });
     return true;
@@ -413,7 +414,7 @@ ${JSON.stringify(chunk.map(f => ({ id: f.id, label: f.label, name: f.name, place
 
 async function callLLM(prompt, jsonMode) {
   const data = await chrome.storage.local.get(['provider', 'geminiKey', 'groqKey', 'geminiModel', 'groqModel']);
-  const provider = data.provider || 'gemini';
+  const provider = data.provider || 'groq';
   
   if (provider === 'gemini') {
     if (!data.geminiKey) throw new Error('Gemini key not set');
