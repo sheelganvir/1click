@@ -157,16 +157,113 @@ async function extractAndFill(root = document) {
       debugLog(`Error from matcher: ${response.error}`);
     } else if (response && response.matched) {
       debugLog(`Received matches: ${JSON.stringify(response.matched)}`);
-      fillFields(response.matched, root);
+      fillFields(response.matched, response.profile, root);
     } else {
       debugLog("No response received from matcher.");
     }
   });
 }
 
-function fillFields(matched, root) {
+async function fillFields(matched, profile, root) {
   chrome.runtime.sendMessage({ type: 'AUTOFILL_PROGRESS', percent: 80, text: 'Injecting values...' });
   let count = 0;
+
+  // Identify any portfolio/website inputs
+  const linkFields = [];
+  for (const [id, value] of Object.entries(matched)) {
+    if (!value) continue;
+    const el = root.querySelector(`[data-autofill-id="${id}"]`);
+    if (el) {
+      const name = (el.name || '').toLowerCase();
+      const label = getLabel(el).toLowerCase();
+      if (
+        (el.tagName === 'INPUT' && el.type === 'url') ||
+        label.includes('portfolio') ||
+        label.includes('website') ||
+        name.includes('portfolio') ||
+        name.includes('website') ||
+        name.includes('link')
+      ) {
+        linkFields.push({ id, el, value });
+      }
+    }
+  }
+
+  if (linkFields.length > 0 && profile) {
+    const profileLinks = [
+      profile.website,
+      profile.linkedin,
+      profile.github,
+      profile.x,
+      profile.leetcode,
+      profile.gfg,
+      profile.medium
+    ].filter(Boolean);
+
+    if (profileLinks.length > 0) {
+      let targetLinkField = null;
+      let addBtn = null;
+      let targetContainer = null;
+
+      for (const lf of linkFields) {
+        const container = lf.el.closest('div.field') || lf.el.parentElement;
+        if (container) {
+          let btn = Array.from(container.querySelectorAll('button, [role="button"]')).find(b => {
+            const text = b.innerText.toLowerCase();
+            return text.includes('add') || text.includes('+') || text.includes('link') || text.includes('portfolio') || text.includes('another');
+          });
+          if (!btn && container.parentElement) {
+            btn = Array.from(container.parentElement.querySelectorAll('button, [role="button"]')).find(b => {
+              const text = b.innerText.toLowerCase();
+              return text.includes('add') || text.includes('+') || text.includes('link') || text.includes('portfolio') || text.includes('another');
+            });
+          }
+          if (btn) {
+            targetLinkField = lf;
+            addBtn = btn;
+            targetContainer = container;
+            break;
+          }
+        }
+      }
+
+      if (addBtn && targetLinkField) {
+        debugLog(`Found dynamic links with 'Add' button. Filling all ${profileLinks.length} profile links...`);
+        linkFields.forEach(lf => {
+          const containerOfLf = lf.el.closest('div.field') || lf.el.parentElement;
+          if (containerOfLf === targetContainer) {
+            delete matched[lf.id];
+          }
+        });
+
+        let currentInput = targetLinkField.el;
+        for (let i = 0; i < profileLinks.length; i++) {
+          const urlVal = profileLinks[i];
+          try {
+            injectValue(currentInput, urlVal);
+            count++;
+            
+            if (i < profileLinks.length - 1) {
+              addBtn.click();
+              await new Promise(resolve => setTimeout(resolve, 60));
+              
+              const containerToSearch = document.getElementById('links-container') || container.parentElement || container;
+              const allUrlInputs = Array.from(containerToSearch.querySelectorAll('input[type="url"], input[name*="link"]'));
+              if (allUrlInputs.length > i + 1) {
+                currentInput = allUrlInputs[allUrlInputs.length - 1];
+              } else {
+                debugLog("Add button clicked, but no new input field was detected in DOM.");
+                break;
+              }
+            }
+          } catch (err) {
+            debugLog(`Error filling dynamic link ${i}: ${err.message}`);
+          }
+        }
+      }
+    }
+  }
+
   for (const [id, value] of Object.entries(matched)) {
     if (!value) continue;
     const el = root.querySelector(`[data-autofill-id="${id}"]`);
@@ -390,8 +487,10 @@ function injectValue(el, value) {
     const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
     
     if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
+      el.value = finalValue;
       nativeTextAreaValueSetter.call(el, finalValue);
     } else if (nativeInputValueSetter) {
+      el.value = finalValue;
       nativeInputValueSetter.call(el, finalValue);
     } else {
       el.value = finalValue;

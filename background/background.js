@@ -43,6 +43,7 @@ const RULES = [
   { regex: /\bleetcode\b/i, field: 'leetcode' },
   { regex: /\b(gfg|geeksforgeeks)\b/i, field: 'gfg' },
   { regex: /\b(website|portfolio)\b/i, field: 'website' },
+  { regex: /\b(skills|skill|skill_tags)\b/i, field: 'skills' },
 
   // Personal Info
   { regex: /\bfirst.*name\b/i, field: 'firstName' },
@@ -80,6 +81,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         provider: data.provider || 'gemini'
       });
     });
+    return true;
+  }
+  if (msg.type === 'GET_PROFILE') {
+    getProfileData().then(data => sendResponse({ profile: data.profile })).catch(e => sendResponse({ error: e.message }));
     return true;
   }
   if (msg.type === 'SIGN_OUT') {
@@ -394,7 +399,7 @@ ${JSON.stringify(chunk.map(f => ({ id: f.id, label: f.label, name: f.name, place
     }
   }
   
-  return { matched };
+  return { matched, profile };
 }
 
 async function callLLM(prompt, jsonMode) {
