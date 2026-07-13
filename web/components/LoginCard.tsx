@@ -63,6 +63,21 @@ export default function LoginCard() {
     setLoading(false)
   }
 
+  const handleGoogleLogin = async () => {
+    setLoading(true)
+    setMsg('')
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
+      }
+    })
+    if (error) {
+      setMsg(error.message)
+      setLoading(false)
+    }
+  }
+
   return (
     <div 
       className="absolute z-[60] w-[90%] max-w-[420px] bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.08)] border border-light-accent p-8 sm:p-10 animate-fade-in-up left-1/2 md:left-[50%] lg:left-[58.9%] top-1/2 md:top-[55%] -translate-x-1/2 -translate-y-1/2"
@@ -147,7 +162,7 @@ export default function LoginCard() {
 
         <button 
           type="button"
-          onClick={handleMagicLink}
+          onClick={handleGoogleLogin}
           disabled={loading}
           className="w-full bg-white border border-light-accent text-black py-3 rounded-xl font-extrabold hover:border-primary/50 hover:bg-light-accent/10 hover:shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-3"
         >
