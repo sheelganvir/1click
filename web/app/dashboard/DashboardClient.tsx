@@ -327,19 +327,7 @@ export default function DashboardClient({ userId, email, initialProfile, extensi
     return () => observer.disconnect()
   }, [])
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      if (params.get('resetPassword') === 'true') {
-        setIsSettingsOpen(true)
-        setSettingsMsg('Please enter your new password below.')
-        
-        // Clean up url parameters
-        const newUrl = window.location.pathname
-        window.history.replaceState({}, document.title, newUrl)
-      }
-    }
-  }, [])
+
 
   useEffect(() => {
     const checkGoogleUserWithoutPassword = async () => {

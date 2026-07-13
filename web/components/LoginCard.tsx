@@ -88,7 +88,7 @@ export default function LoginCard() {
     setLoading(true)
     setMsg('')
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/dashboard?resetPassword=true')}`
+      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/reset-password')}`
     })
     if (error) {
       setMsg(error.message)
