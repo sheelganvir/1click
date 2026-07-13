@@ -274,6 +274,10 @@ export default function DashboardClient({ userId, email, initialProfile, extensi
   const [skillInput, setSkillInput] = useState('')
   const [langInput, setLangInput] = useState('')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isSetPasswordPopupOpen, setIsSetPasswordPopupOpen] = useState(false)
+  const [popupPassword, setPopupPassword] = useState('')
+  const [popupMsg, setPopupMsg] = useState('')
+  const [popupLoading, setPopupLoading] = useState(false)
   const [groqKey, setGroqKey] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('groqKey') || '';
@@ -322,6 +326,69 @@ export default function DashboardClient({ userId, email, initialProfile, extensi
 
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('resetPassword') === 'true') {
+        setIsSettingsOpen(true)
+        setSettingsMsg('Please enter your new password below.')
+        
+        // Clean up url parameters
+        const newUrl = window.location.pathname
+        window.history.replaceState({}, document.title, newUrl)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const checkGoogleUserWithoutPassword = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      const hasEmailIdentity = user.identities?.some(id => id.provider === 'email')
+      const hasGoogleIdentity = user.identities?.some(id => id.provider === 'google')
+      
+      const skippedBefore = localStorage.getItem('1click_skip_password_setup') === 'true'
+      
+      if (hasGoogleIdentity && !hasEmailIdentity && !skippedBefore) {
+        setIsSetPasswordPopupOpen(true)
+      }
+    }
+    
+    checkGoogleUserWithoutPassword()
+  }, [])
+
+  const handleSetPassword = async () => {
+    if (!popupPassword.trim()) {
+      setPopupMsg('Please enter a password.')
+      return
+    }
+    if (popupPassword.trim().length < 6) {
+      setPopupMsg('Password must be at least 6 characters.')
+      return
+    }
+    setPopupLoading(true)
+    setPopupMsg('')
+    const { error } = await supabase.auth.updateUser({
+      password: popupPassword.trim()
+    })
+    if (error) {
+      setPopupMsg(`Error: ${error.message}`)
+    } else {
+      setPopupMsg('Password set successfully!')
+      localStorage.setItem('1click_skip_password_setup', 'true')
+      setTimeout(() => {
+        setIsSetPasswordPopupOpen(false)
+      }, 1500)
+    }
+    setPopupLoading(false)
+  }
+
+  const handleSkipPassword = () => {
+    localStorage.setItem('1click_skip_password_setup', 'true')
+    setIsSetPasswordPopupOpen(false)
+  }
 
   const scrollToSection = (id: SectionId) => {
     setActiveSection(id)
@@ -1218,6 +1285,54 @@ ${text.substring(0, 15000)}`
             <div className="flex justify-end pt-4 border-t">
               <button onClick={() => { setIsSettingsOpen(false); setSettingsMsg(''); }} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-300 font-bold cursor-pointer">Close</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isSetPasswordPopupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl text-center">
+            <div className="mb-4 flex justify-center text-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            
+            <h2 className="mb-2 text-2xl font-bold text-slate-900">Set Account Password</h2>
+            <p className="mb-6 text-sm font-semibold text-gray-500 max-w-[320px] mx-auto leading-relaxed">
+              Create a local password so you can also log in manually with your email if you ever lose access to Google.
+            </p>
+            
+            <div className="mb-6 text-left">
+              <label className="block text-xs font-extrabold uppercase tracking-widest text-foreground/70 mb-2">Password</label>
+              <input
+                type="password"
+                value={popupPassword}
+                onChange={e => setPopupPassword(e.target.value)}
+                placeholder="Choose password (min 6 chars)"
+                className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:ring-2 focus:ring-primary focus:border-primary outline-none font-bold"
+              />
+            </div>
+
+            <button 
+              onClick={handleSetPassword}
+              disabled={popupLoading}
+              className="mb-4 w-full rounded-lg bg-gradient-to-b from-[#0B7A2A] to-primary px-4 py-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50 shadow-md transition-all"
+            >
+              {popupLoading ? 'Setting Password...' : 'Set Password'}
+            </button>
+
+            <button 
+              onClick={handleSkipPassword}
+              disabled={popupLoading}
+              className="w-full text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Skip, I will do it later in profile settings
+            </button>
+            
+            {popupMsg && (
+              <p className={`text-sm font-bold mt-4 ${popupMsg.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                {popupMsg}
+              </p>
+            )}
           </div>
         </div>
       )}
