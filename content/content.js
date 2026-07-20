@@ -88,9 +88,15 @@ function getLabel(el) {
   if (el.getAttribute('aria-label')) {
     baseLabel = el.getAttribute('aria-label');
   } else if (el.getAttribute('aria-labelledby')) {
-    const labelId = el.getAttribute('aria-labelledby');
-    const labelEl = document.getElementById(labelId);
-    if (labelEl) baseLabel = labelEl.innerText;
+    const labelIds = el.getAttribute('aria-labelledby').split(/\s+/);
+    baseLabel = labelIds.map(id => {
+      try {
+        const labelEl = document.getElementById(id);
+        return labelEl ? labelEl.innerText.trim() : '';
+      } catch (e) {
+        return '';
+      }
+    }).filter(Boolean).join(' ');
   } else if (el.id) {
     const labelEl = document.querySelector(`label[for="${el.id}"]`);
     if (labelEl) baseLabel = labelEl.innerText;
@@ -103,6 +109,24 @@ function getLabel(el) {
       const input = clone.querySelector('input, select, textarea');
       if (input) input.remove();
       baseLabel = clone.innerText.trim();
+    }
+  }
+
+  // Google Forms fallback
+  if (!baseLabel) {
+    const listItem = el.closest('[role="listitem"]');
+    if (listItem) {
+      const heading = listItem.querySelector('[role="heading"]');
+      if (heading) {
+        baseLabel = heading.innerText.trim();
+      } else {
+        // Sometimes the title doesn't have role="heading" but is the first text element
+        const firstDiv = listItem.querySelector('div');
+        if (firstDiv && firstDiv.innerText) {
+          // just taking a snippet if it's too long, but usually it's the question title
+          baseLabel = firstDiv.innerText.split('\n')[0].trim();
+        }
+      }
     }
   }
   
@@ -136,18 +160,39 @@ function getOptions(el) {
 
 async function extractAndFill(root = document) {
   debugLog("Scanning DOM for input elements...");
-  const inputs = Array.from(root.querySelectorAll('input:not([type="hidden"]):not([type="submit"]), select, textarea, [contenteditable="true"]'));
+  const inputs = Array.from(root.querySelectorAll('input:not([type="hidden"]):not([type="submit"]), select, textarea, [contenteditable="true"], [role="radio"], [role="checkbox"], [role="combobox"]'));
   const fields = [];
   
   inputs.forEach((el, i) => {
     if (seenElements.has(el)) return;
     
+    // Skip div-based controls if they contain a native input we already match to avoid duplicates, 
+    // unless they are Google Forms structure (often only have div-based controls).
+    if (el.tagName !== 'INPUT' && el.tagName !== 'SELECT' && el.tagName !== 'TEXTAREA') {
+      const nativeInput = el.querySelector('input:not([type="hidden"]), select, textarea');
+      if (nativeInput && inputs.includes(nativeInput)) return;
+    }
+
     const label = getLabel(el);
-    const name = el.name || '';
-    const placeholder = el.placeholder || '';
+    const name = el.name || el.getAttribute('name') || '';
+    const placeholder = el.placeholder || el.getAttribute('placeholder') || '';
     
+    // For div-based radios/checkboxes, extract their specific option text
+    let type = el.type || el.tagName.toLowerCase();
+    let optionText = '';
+    
+    if (el.getAttribute('role') === 'radio') {
+      type = 'radio';
+      optionText = el.getAttribute('aria-label') || el.innerText.trim();
+    } else if (el.getAttribute('role') === 'checkbox') {
+      type = 'checkbox';
+      optionText = el.getAttribute('aria-label') || el.innerText.trim();
+    } else if (el.getAttribute('role') === 'combobox') {
+      type = 'select-one'; // Custom dropdown
+    }
+
     // Ignore completely anonymous fields to prevent matching hallucinations
-    if (!label && !name && !placeholder) {
+    if (!label && !name && !placeholder && !optionText) {
       return;
     }
     
@@ -158,12 +203,17 @@ async function extractAndFill(root = document) {
       el.dataset.autofillId = 'field_' + Math.random().toString(36).substr(2, 9);
     }
     
+    // If it's a non-native radio/checkbox, append its option text to label to simulate native behavior
+    const finalLabel = (type === 'radio' || type === 'checkbox') && optionText && !label.includes(optionText) 
+      ? `${label} - ${optionText}` 
+      : label;
+
     fields.push({
       id: el.dataset.autofillId,
       name: name,
-      type: el.type || el.tagName.toLowerCase(),
+      type: type,
       placeholder: placeholder,
-      label: label,
+      label: finalLabel,
       options: getOptions(el)
     });
   });
@@ -201,8 +251,11 @@ async function fillFields(matched, profile, root) {
         (el.tagName === 'INPUT' && el.type === 'url') ||
         label.includes('portfolio') ||
         label.includes('website') ||
+        label.includes('url') ||
+        label.includes('link') ||
         name.includes('portfolio') ||
         name.includes('website') ||
+        name.includes('url') ||
         name.includes('link')
       ) {
         linkFields.push({ id, el, value });
@@ -227,33 +280,37 @@ async function fillFields(matched, profile, root) {
       let targetContainer = null;
 
       for (const lf of linkFields) {
-        const container = lf.el.closest('div.field') || lf.el.parentElement;
-        if (container) {
-          let btn = Array.from(container.querySelectorAll('button, [role="button"]')).find(b => {
+        let container = lf.el.parentElement;
+        let btn = null;
+        for (let j = 0; j < 6; j++) {
+          if (!container || container === document.body) break;
+          btn = Array.from(container.querySelectorAll('button, [role="button"]')).find(b => {
             const text = b.innerText.toLowerCase();
             return text.includes('add') || text.includes('+') || text.includes('link') || text.includes('portfolio') || text.includes('another');
           });
-          if (!btn && container.parentElement) {
-            btn = Array.from(container.parentElement.querySelectorAll('button, [role="button"]')).find(b => {
-              const text = b.innerText.toLowerCase();
-              return text.includes('add') || text.includes('+') || text.includes('link') || text.includes('portfolio') || text.includes('another');
-            });
-          }
-          if (btn) {
-            targetLinkField = lf;
-            addBtn = btn;
-            targetContainer = container;
-            break;
-          }
+          if (btn) break;
+          container = container.parentElement;
+        }
+        
+        if (btn) {
+          targetLinkField = lf;
+          addBtn = btn;
+          targetContainer = container;
+          break;
         }
       }
 
       if (addBtn && targetLinkField) {
         debugLog(`Found dynamic links with 'Add' button. Filling all ${profileLinks.length} profile links...`);
         linkFields.forEach(lf => {
-          const containerOfLf = lf.el.closest('div.field') || lf.el.parentElement;
-          if (containerOfLf === targetContainer) {
-            delete matched[lf.id];
+          let c = lf.el.parentElement;
+          for (let j=0; j<6; j++) {
+            if (!c) break;
+            if (c === targetContainer) {
+              delete matched[lf.id];
+              break;
+            }
+            c = c.parentElement;
           }
         });
 
@@ -266,14 +323,28 @@ async function fillFields(matched, profile, root) {
             
             if (i < profileLinks.length - 1) {
               addBtn.click();
-              await new Promise(resolve => setTimeout(resolve, 60));
               
-              const containerToSearch = document.getElementById('links-container') || container.parentElement || container;
-              const allUrlInputs = Array.from(containerToSearch.querySelectorAll('input[type="url"], input[name*="link"]'));
-              if (allUrlInputs.length > i + 1) {
-                currentInput = allUrlInputs[allUrlInputs.length - 1];
-              } else {
-                debugLog("Add button clicked, but no new input field was detected in DOM.");
+              let foundNew = false;
+              for (let j = 0; j < 20; j++) {
+                await new Promise(resolve => setTimeout(resolve, 100)); // poll every 100ms
+                
+                const allInputs = Array.from(document.querySelectorAll('input:not([type="hidden"])'));
+                const emptyLinkInputs = allInputs.filter(inp => {
+                  if (inp.value) return false;
+                  const l = getLabel(inp).toLowerCase();
+                  const n = (inp.name || '').toLowerCase();
+                  return (inp.type === 'url' || l.includes('portfolio') || l.includes('website') || l.includes('url') || l.includes('link') || n.includes('portfolio') || n.includes('website') || n.includes('url') || n.includes('link'));
+                });
+                
+                if (emptyLinkInputs.length > 0) {
+                  currentInput = emptyLinkInputs[0];
+                  foundNew = true;
+                  break;
+                }
+              }
+              
+              if (!foundNew) {
+                debugLog("Add button clicked, but no new empty URL input field was detected.");
                 break;
               }
             }
@@ -346,10 +417,17 @@ function formatForMonthInput(val) {
   
   if (!year) {
     const parts = str.split(/[\s\-\/]+/);
-    if (parts.length === 2) {
+    if (parts.length >= 2) {
       const p0 = parts[0];
       const p1 = parts[1];
-      if (/^\d{4}$/.test(p1)) {
+      const p2 = parts.length > 2 ? parts[2] : null;
+      if (p2 && /^\d{4}$/.test(p2)) {
+        year = p2;
+        // Try to figure out month from p0 or p1
+        if (parseInt(p1, 10) > 12) month = p0.padStart(2, '0');
+        else if (parseInt(p0, 10) > 12) month = p1.padStart(2, '0');
+        else month = p1.padStart(2, '0'); // Default DD/MM
+      } else if (/^\d{4}$/.test(p1)) {
         year = p1;
         month = p0.padStart(2, '0');
       } else if (/^\d{4}$/.test(p0)) {
@@ -363,7 +441,7 @@ function formatForMonthInput(val) {
   }
   
   if (!year) {
-    year = new Date().getFullYear().toString();
+    return '';
   }
   
   return `${year}-${month}`;
@@ -372,14 +450,55 @@ function formatForMonthInput(val) {
 function formatForDateInput(val) {
   if (!val) return '';
   const str = val.toString().trim();
+  
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     return str;
   }
+  
+  let match = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (match) {
+    let p1 = parseInt(match[1], 10);
+    let p2 = parseInt(match[2], 10);
+    let year = parseInt(match[3], 10);
+    let month, day;
+    
+    if (p1 > 12 && p2 <= 12) {
+      day = p1; month = p2;
+    } else if (p2 > 12 && p1 <= 12) {
+      month = p1; day = p2;
+    } else {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+      }
+      day = p1; month = p2;
+    }
+    return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  }
+
+  match = str.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
+  if (match) {
+    let year = match[1];
+    let month = match[2];
+    let day = match[3];
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+  }
+
   if (/^\d{4}-\d{2}$/.test(str)) {
     return `${str}-01`;
   }
+
   const monthStr = formatForMonthInput(str);
-  return `${monthStr}-01`;
+  if (monthStr && monthStr.includes('-')) {
+    return `${monthStr}-01`;
+  }
+
+  return '';
 }
 
 function formatForWeekInput(val) {
@@ -698,10 +817,15 @@ async function injectValue(el, value) {
     }
   }
 
-  if (el.type === 'checkbox' || el.type === 'radio') {
+  const elRole = el.getAttribute ? el.getAttribute('role') : null;
+  const isCheckbox = el.type === 'checkbox' || elRole === 'checkbox';
+  const isRadio = el.type === 'radio' || elRole === 'radio';
+
+  if (isCheckbox || isRadio) {
     const valLowerChoice = valStr.toLowerCase();
-    const elVal = el.value.toLowerCase();
+    const elVal = (el.value || el.getAttribute('aria-label') || '').toLowerCase();
     const baseLabel = getLabel(el).split(' - ').pop().toLowerCase();
+    const isChecked = el.checked !== undefined ? el.checked : el.getAttribute('aria-checked') === 'true';
     
     const isMatched = (
       valLowerChoice === 'true' || 
@@ -711,12 +835,12 @@ async function injectValue(el, value) {
       valLowerChoice.includes(baseLabel)
     );
     
-    debugLog(`[Choice] Type: ${el.type}, valLower: "${valLowerChoice}", elVal: "${elVal}", baseLabel: "${baseLabel}", isMatched: ${isMatched}`);
+    debugLog(`[Choice] Type: ${el.type || elRole}, valLower: "${valLowerChoice}", elVal: "${elVal}", baseLabel: "${baseLabel}", isChecked: ${isChecked}, isMatched: ${isMatched}`);
     
-    if (isMatched && !el.checked) {
+    if (isMatched && !isChecked) {
       el.click();
       debugLog(`[Choice] Clicked to CHECK.`);
-    } else if (!isMatched && el.checked && el.type === 'checkbox') {
+    } else if (!isMatched && isChecked && isCheckbox) {
       el.click();
       debugLog(`[Choice] Clicked to UNCHECK.`);
     }
@@ -761,9 +885,9 @@ async function injectValue(el, value) {
     
     if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
       nativeTextAreaValueSetter.call(el, finalValue);
-    } else if (nativeInputValueSetter) {
+    } else if (el.tagName === 'INPUT' && nativeInputValueSetter) {
       nativeInputValueSetter.call(el, finalValue);
-    } else {
+    } else if (el.value !== undefined) {
       el.value = finalValue;
     }
     el.dispatchEvent(new Event('input', { bubbles: true }));
